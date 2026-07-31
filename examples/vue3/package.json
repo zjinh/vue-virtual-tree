@@ -1,0 +1,21 @@
+{
+  "name": "@zjinh/vue-virtual-tree-demo-vue3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@zjinh/vue-virtual-tree": "workspace:*",
+    "vue": "3.5.40"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "6.0.3",
+    "typescript": "6.0.3",
+    "vite": "7.2.4",
+    "vue-tsc": "3.3.9"
+  }
+}

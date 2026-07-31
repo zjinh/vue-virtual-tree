@@ -51,6 +51,50 @@ importers:
         specifier: npm:vue@2.7.16
         version: vue@2.7.16
 
+  examples/vue2:
+    dependencies:
+      '@zjinh/vue-virtual-tree':
+        specifier: workspace:*
+        version: link:../..
+      vue:
+        specifier: 2.7.16
+        version: 2.7.16
+    devDependencies:
+      '@vitejs/plugin-vue2':
+        specifier: 2.3.4
+        version: 2.3.4(vite@7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0))(vue@2.7.16)
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 7.2.4
+        version: 7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0)
+      vue-tsc:
+        specifier: 3.3.9
+        version: 3.3.9(typescript@6.0.3)
+
+  examples/vue3:
+    dependencies:
+      '@zjinh/vue-virtual-tree':
+        specifier: workspace:*
+        version: link:../..
+      vue:
+        specifier: 3.5.40
+        version: 3.5.40(typescript@6.0.3)
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: 6.0.3
+        version: 6.0.3(vite@7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0))(vue@3.5.40(typescript@6.0.3))
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vite:
+        specifier: 7.2.4
+        version: 7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0)
+      vue-tsc:
+        specifier: 3.3.9
+        version: 3.3.9(typescript@6.0.3)
+
 packages:
 
   '@asamuzakjp/css-color@6.0.5':
@@ -419,6 +463,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@rolldown/pluginutils@1.0.0-beta.53':
+    resolution: {integrity: sha512-vENRlFU4YbrwVqNDZ7fLvy+JR1CRkyr01jhSiDpE1u6py3OMzQfztQU2jxykW3ALNxO4kSlqIDeYyD0Y9RcQeQ==}
+
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
@@ -606,6 +653,13 @@ packages:
     peerDependencies:
       vite: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
       vue: ^2.7.0-0
+
+  '@vitejs/plugin-vue@6.0.3':
+    resolution: {integrity: sha512-TlGPkLFLVOY3T7fZrwdvKpjprR3s4fxRln0ORDo1VQ7HHyxJwTlrjKU3kpVWTlaAjIEuCTokmjkZnr8Tpc925w==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    peerDependencies:
+      vite: ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
+      vue: ^3.2.25
 
   '@vitest/expect@4.1.10':
     resolution: {integrity: sha512-YsCn+qAk1GWjQOWFEsEcL2gNQ0zmVmQu3T03qP6UyjhtmdtwtbuI+DASn/7iQB3HGTXkdBwGddzxPlmiql5vlA==}
@@ -1804,6 +1858,8 @@ snapshots:
   '@rolldown/binding-win32-x64-msvc@1.2.1':
     optional: true
 
+  '@rolldown/pluginutils@1.0.0-beta.53': {}
+
   '@rolldown/pluginutils@1.0.1': {}
 
   '@rollup/rollup-android-arm-eabi@4.62.3':
@@ -1914,8 +1970,19 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  '@vitejs/plugin-vue2@2.3.4(vite@7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0))(vue@2.7.16)':
+    dependencies:
+      vite: 7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0)
+      vue: 2.7.16
+
   '@vitejs/plugin-vue2@2.3.4(vite@7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0))(vue@3.5.40(typescript@6.0.3))':
     dependencies:
+      vite: 7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0)
+      vue: 3.5.40(typescript@6.0.3)
+
+  '@vitejs/plugin-vue@6.0.3(vite@7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0))(vue@3.5.40(typescript@6.0.3))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.0-beta.53
       vite: 7.2.4(@types/node@22.20.1)(less@4.8.1)(lightningcss@1.33.0)
       vue: 3.5.40(typescript@6.0.3)
 

@@ -50,10 +50,16 @@
   },
   "scripts": {
     "build": "node scripts/clean-build.mjs && tsdown && tsc -p tsconfig.declarations.json && node scripts/finalize-build.mjs",
+    "dev:vue2": "pnpm run build && pnpm --filter @zjinh/vue-virtual-tree-demo-vue2 run dev",
+    "dev:vue3": "pnpm run build && pnpm --filter @zjinh/vue-virtual-tree-demo-vue3 run dev",
     "typecheck": "tsc --noEmit",
     "typecheck:sfc": "vue-tsc --noEmit -p tsconfig.sfc.json",
-    "test": "pnpm run test:package && pnpm run test:model && pnpm run test:components && pnpm run typecheck && pnpm run typecheck:sfc && pnpm run build && pnpm run test:artifacts && pnpm run test:types",
-    "test:package": "node --test tests/package-contract.test.mjs",
+    "typecheck:demos": "pnpm --filter @zjinh/vue-virtual-tree-demo-vue2 run typecheck && pnpm --filter @zjinh/vue-virtual-tree-demo-vue3 run typecheck",
+    "build:demos": "pnpm --filter @zjinh/vue-virtual-tree-demo-vue2 run build && pnpm --filter @zjinh/vue-virtual-tree-demo-vue3 run build",
+    "test:demos:unit": "vitest run tests/demo/api-manifest.test.ts tests/demo/benchmark.test.ts tests/demo/data.test.ts",
+    "test:demos": "pnpm run build && pnpm run test:demos:unit && pnpm run typecheck:demos && pnpm run build:demos",
+    "test": "pnpm run test:package && pnpm run test:model && pnpm run test:components && pnpm run typecheck && pnpm run typecheck:sfc && pnpm run build && pnpm run test:artifacts && pnpm run test:types && pnpm run test:demos",
+    "test:package": "node --test tests/package-contract.test.mjs tests/demo-contract.test.mjs",
     "test:model": "vitest run tests/model",
     "test:component:vue2": "vitest run --config vitest.component.vue2.config.ts",
     "test:component:vue3": "vitest run --config vitest.component.vue3.config.ts",
@@ -62,7 +68,7 @@
     "test:types": "tsc -p tests/types/vue3/tsconfig.json && tsc -p tests/types/vue2/tsconfig.json",
     "prepack": "pnpm run build && pnpm run test:artifacts",
     "prepublishOnly": "pnpm run release:check",
-    "release:check": "pnpm run test:package && pnpm run test:model && pnpm run test:components && pnpm run typecheck && pnpm run typecheck:sfc && pnpm run build && pnpm run test:artifacts && pnpm run test:types && publint"
+    "release:check": "pnpm run test:package && pnpm run test:model && pnpm run test:components && pnpm run typecheck && pnpm run typecheck:sfc && pnpm run build && pnpm run test:artifacts && pnpm run test:types && pnpm run test:demos && publint"
   },
   "peerDependencies": {
     "vue": "^2.7.0 || ^3.2.0"

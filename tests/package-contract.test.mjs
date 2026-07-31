@@ -85,6 +85,12 @@ test('defines package and release gates around tsdown', () => {
   assert.match(packageJson.scripts['test:artifacts'], /artifact-contract/)
   assert.match(packageJson.scripts['test:types'], /tests\/types\/vue3\/tsconfig\.json/)
   assert.match(packageJson.scripts['test:types'], /tests\/types\/vue2\/tsconfig\.json/)
+  assert.match(packageJson.scripts['test:package'], /demo-contract/)
+  assert.match(packageJson.scripts['test:demos'], /test:demos:unit/)
+  assert.match(packageJson.scripts['test:demos'], /typecheck:demos/)
+  assert.match(packageJson.scripts['test:demos'], /build:demos/)
+  assert.match(packageJson.scripts['dev:vue2'], /vue-virtual-tree-demo-vue2/)
+  assert.match(packageJson.scripts['dev:vue3'], /vue-virtual-tree-demo-vue3/)
   assert.match(packageJson.scripts.prepack, /build/)
   assert.match(packageJson.scripts.prepack, /test:artifacts/)
   assert.match(packageJson.scripts.prepublishOnly, /release:check/)
@@ -97,6 +103,7 @@ test('defines package and release gates around tsdown', () => {
     'build',
     'test:artifacts',
     'test:types',
+    'test:demos',
   ])
 
   assert.match(packageJson.scripts['release:check'], /^pnpm run test:package/)
@@ -107,6 +114,7 @@ test('defines package and release gates around tsdown', () => {
     'build',
     'test:artifacts',
     'test:types',
+    'test:demos',
     'publint',
   ])
 })
