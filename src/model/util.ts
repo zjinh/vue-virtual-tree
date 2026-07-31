@@ -3,6 +3,17 @@ import type Node from './node'
 export type TreeKey = string | number
 export type TreeNodeData = object
 export type TreeDataKey<T extends TreeNodeData> = Extract<keyof T, string>
+export type KeysMatching<T extends object, Value> = {
+  [Key in keyof T]-?:
+    [NonNullable<T[Key]>] extends [never]
+      ? never
+      : NonNullable<T[Key]> extends Value
+        ? Key
+        : never
+}[keyof T] & string
+export type TreeNodeKey<T extends TreeNodeData> = KeysMatching<T, TreeKey>
+export type TreeChildrenKey<T extends TreeNodeData> = KeysMatching<T, T[]>
+export type TreeBooleanKey<T extends TreeNodeData> = KeysMatching<T, boolean>
 export type TreePropertyGetter<
   T extends TreeNodeData,
   Value = unknown,
@@ -13,10 +24,10 @@ export type TreeProperty<
 > = TreeDataKey<T> | TreePropertyGetter<T, Value>
 
 export type TreeOptionProps<T extends TreeNodeData = TreeNodeData> = {
-  children?: TreeDataKey<T>
+  children?: TreeChildrenKey<T>
   label?: TreeProperty<T>
-  disabled?: TreeProperty<T>
-  isLeaf?: TreeProperty<T, boolean>
+  disabled?: TreeBooleanKey<T> | TreePropertyGetter<T>
+  isLeaf?: TreeBooleanKey<T> | TreePropertyGetter<T, boolean>
 } & Partial<Record<string, TreeProperty<T>>>
 
 export type LoadResolve<T extends TreeNodeData> = (data: T[]) => void
@@ -52,7 +63,7 @@ export const markNodeData = (
 }
 
 export const getNodeKey = <T extends TreeNodeData>(
-  key: TreeDataKey<T> | null | undefined,
+  key: TreeNodeKey<T> | null | undefined,
   data: T,
 ): TreeKey | undefined => {
   const dataRecord = data as Record<string, unknown>

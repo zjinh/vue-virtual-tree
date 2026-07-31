@@ -90,6 +90,18 @@ describe('tree construction', () => {
 })
 
 describe('checking', () => {
+  it.each([null, undefined])(
+    'skips a registered node whose key is later changed to %s',
+    (missingKey) => {
+      const store = createStore()
+      const target = node(store, 11)
+      target.data.id = missingKey as unknown as number
+
+      expect(() => store.setCheckedKeys([2])).not.toThrow()
+      expect(node(store, 2).checked).toBe(true)
+    },
+  )
+
   it('preserves truthy disabled values read from a mapped data field', () => {
     const store = createStore({
       data: [

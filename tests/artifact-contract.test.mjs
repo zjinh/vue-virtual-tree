@@ -117,6 +117,8 @@ test('entry points expose default, named, and install APIs', async () => {
   for (const entry of [vue2, vue3]) {
     assert.equal(entry.default, entry.VueVirtualTree)
     assert.equal(typeof entry.VueVirtualTree.install, 'function')
+    assert.equal(typeof entry.Node, 'function')
+    assert.equal(typeof entry.TreeStore, 'function')
 
     let registration
     entry.VueVirtualTree.install({

@@ -7,6 +7,17 @@ import ModelTreeStore from './model/tree-store'
 export type TreeKey = string | number
 export type TreeNodeData = object
 export type TreeDataKey<T extends TreeNodeData> = Extract<keyof T, string>
+export type KeysMatching<T extends object, Value> = {
+  [Key in keyof T]-?:
+    [NonNullable<T[Key]>] extends [never]
+      ? never
+      : NonNullable<T[Key]> extends Value
+        ? Key
+        : never
+}[keyof T] & string
+export type TreeNodeKey<T extends TreeNodeData> = KeysMatching<T, TreeKey>
+export type TreeChildrenKey<T extends TreeNodeData> = KeysMatching<T, T[]>
+export type TreeBooleanKey<T extends TreeNodeData> = KeysMatching<T, boolean>
 export type TreePropertyGetter<
   T extends TreeNodeData,
   Value = unknown,
@@ -16,10 +27,10 @@ export type TreeProperty<
   Value = unknown,
 > = TreeDataKey<T> | TreePropertyGetter<T, Value>
 export type TreeOptionProps<T extends TreeNodeData = TreeNodeData> = {
-  children?: TreeDataKey<T>
+  children?: TreeChildrenKey<T>
   label?: TreeProperty<T>
-  disabled?: TreeProperty<T>
-  isLeaf?: TreeProperty<T, boolean>
+  disabled?: TreeBooleanKey<T> | TreePropertyGetter<T>
+  isLeaf?: TreeBooleanKey<T> | TreePropertyGetter<T, boolean>
 } & Partial<Record<string, TreeProperty<T>>>
 
 export type LoadResolve<T extends TreeNodeData> = (data: T[]) => void
@@ -108,7 +119,7 @@ export type TreeNode<T extends TreeNodeData = TreeNodeData> = Node<T>
 
 export interface TreeStoreOptions<T extends TreeNodeData> {
   data: T[]
-  key?: TreeDataKey<T> | null
+  key?: TreeNodeKey<T> | null
   props?: TreeOptionProps<T> | null
   lazy?: boolean | null
   load?: LoadFunction<T> | null
@@ -134,7 +145,7 @@ export interface TreeStore<T extends TreeNodeData = TreeNodeData> {
   currentNode: Node<T> | null
   currentNodeKey: TreeKey | null | undefined
   data: T[] | null
-  key?: TreeDataKey<T> | null
+  key?: TreeNodeKey<T> | null
   props?: TreeOptionProps<T> | null
   lazy?: boolean | null
   load?: LoadFunction<T> | null
@@ -152,7 +163,6 @@ export interface TreeStore<T extends TreeNodeData = TreeNodeData> {
   accordion?: boolean | null
   indent?: number | null
   nodesMap: Partial<Record<TreeKey, Node<T>>>
-  root: Node<T> | null
   filter<Value>(value: Value): void
   setData(newValue: T[]): void
   getNode(data: TreeNodeReference<T>): Node<T> | null
@@ -189,8 +199,11 @@ export interface TreeStoreConstructor {
   ): TreeStore<T>
 }
 
-export const Node = ModelNode as unknown as NodeConstructor
-export const TreeStore = ModelTreeStore as unknown as TreeStoreConstructor
+// Internal constructors require lifecycle members that are intentionally absent
+// from the public interfaces. Keep that structural bridge at this export boundary.
+export const Node: NodeConstructor = ModelNode as typeof ModelNode & NodeConstructor
+export const TreeStore: TreeStoreConstructor = ModelTreeStore as
+  typeof ModelTreeStore & TreeStoreConstructor
 
 export interface VueVirtualTreeRegistrar {
   component(name: string, component: Component): unknown

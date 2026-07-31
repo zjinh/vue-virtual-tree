@@ -98,6 +98,46 @@ const sourceStore = new SourceTreeStore<ConsumerTreeNode>({
   accordion: true,
   indent: 18,
 })
+// @ts-expect-error virtual root is intentionally not public
+modelStore.root
+// @ts-expect-error virtual root is intentionally not public
+sourceStore.root
+
+new TreeStore<ConsumerTreeNode>({
+  data: [],
+  // @ts-expect-error children arrays cannot be used as node keys
+  key: 'children',
+})
+new SourceTreeStore<ConsumerTreeNode>({
+  data: [],
+  // @ts-expect-error children arrays cannot be used as node keys
+  key: 'children',
+})
+
+const invalidDistChildrenProps: TreeOptionProps<ConsumerTreeNode> = {
+  // @ts-expect-error string fields cannot be used as children mappings
+  children: 'name',
+}
+const invalidSourceChildrenProps: SourceTreeOptionProps<ConsumerTreeNode> = {
+  // @ts-expect-error string fields cannot be used as children mappings
+  children: 'name',
+}
+const invalidDistDisabledProps: TreeOptionProps<ConsumerTreeNode> = {
+  // @ts-expect-error string fields cannot be used as disabled mappings
+  disabled: 'name',
+}
+const invalidSourceDisabledProps: SourceTreeOptionProps<ConsumerTreeNode> = {
+  // @ts-expect-error string fields cannot be used as disabled mappings
+  disabled: 'name',
+}
+const invalidDistLeafProps: TreeOptionProps<ConsumerTreeNode> = {
+  // @ts-expect-error string fields cannot be used as isLeaf mappings
+  isLeaf: 'name',
+}
+const invalidSourceLeafProps: SourceTreeOptionProps<ConsumerTreeNode> = {
+  // @ts-expect-error string fields cannot be used as isLeaf mappings
+  isLeaf: 'name',
+}
 const sourceNode: SourceTreeNode<ConsumerTreeNode> | null = sourceStore.getNode(1)
 const childOptions: NodeChildOptions<ConsumerTreeNode> = {
   data: { id: 2, name: 'child' },
@@ -119,6 +159,12 @@ void sourceData
 void sourceProps
 void sourceLoad
 void sourceFilter
+void invalidDistChildrenProps
+void invalidSourceChildrenProps
+void invalidDistDisabledProps
+void invalidSourceDisabledProps
+void invalidDistLeafProps
+void invalidSourceLeafProps
 
 const plugin: VueVirtualTreePlugin = VueVirtualTree
 const namedPlugin: typeof VueVirtualTree = NamedVueVirtualTree

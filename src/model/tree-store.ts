@@ -3,15 +3,15 @@ import {
   getNodeKey,
   type FilterFunction,
   type LoadFunction,
-  type TreeDataKey,
   type TreeKey,
+  type TreeNodeKey,
   type TreeNodeData,
   type TreeOptionProps,
 } from './util'
 
 export interface TreeStoreOptions<T extends TreeNodeData> {
   data: T[]
-  key?: TreeDataKey<T> | null
+  key?: TreeNodeKey<T> | null
   props?: TreeOptionProps<T> | null
   lazy?: boolean | null
   load?: LoadFunction<T> | null
@@ -37,7 +37,7 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
   currentNode: Node<T> | null = null
   currentNodeKey: TreeKey | null | undefined = null
   data: T[] | null
-  key?: TreeDataKey<T> | null
+  key?: TreeNodeKey<T> | null
   props?: TreeOptionProps<T> | null
   lazy?: boolean | null
   load?: LoadFunction<T> | null
@@ -356,7 +356,7 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
   }
 
   _setCheckedKeys(
-    key: TreeDataKey<T>,
+    key: TreeNodeKey<T>,
     leafOnly = false,
     checkedKeys: Partial<Record<TreeKey, true>>,
   ): void {
@@ -366,7 +366,9 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
     allNodes.forEach((node) => node.setChecked(false, false));
     for (let i = 0, j = allNodes.length; i < j; i++) {
       const node = allNodes[i];
-      const nodeKey = (node.data[key] as TreeKey).toString();
+      const rawNodeKey = node.data[key] as TreeKey | null | undefined
+      if (rawNodeKey === null || rawNodeKey === undefined) continue
+      const nodeKey = rawNodeKey.toString();
       let checked = keys.indexOf(nodeKey) > -1;
       if (!checked) {
         if (node.checked && !cache[nodeKey]) {
@@ -404,7 +406,7 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
   }
 
   setCheckedNodes(array: T[], leafOnly = false): void {
-    const key = this.key as TreeDataKey<T>;
+    const key = this.key as TreeNodeKey<T>;
     const checkedKeys: Partial<Record<TreeKey, true>> = {};
     array.forEach((item) => {
       checkedKeys[item[key] as TreeKey] = true;
@@ -415,7 +417,7 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
 
   setCheckedKeys(keys: TreeKey[], leafOnly = false): void {
     this.defaultCheckedKeys = keys;
-    const key = this.key as TreeDataKey<T>;
+    const key = this.key as TreeNodeKey<T>;
     const checkedKeys: Partial<Record<TreeKey, true>> = {};
     keys.forEach((key) => {
       checkedKeys[key] = true;
@@ -465,7 +467,7 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
   }
 
   setUserCurrentNode(node: T): void {
-    const key = node[this.key as TreeDataKey<T>] as TreeKey;
+    const key = node[this.key as TreeNodeKey<T>] as TreeKey;
     const currNode = this.nodesMap[key];
     this.setCurrentNode(currNode!);
   }

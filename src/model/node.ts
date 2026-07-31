@@ -3,7 +3,7 @@ import {
   markNodeData,
   NODE_KEY,
   objectAssign,
-  type TreeDataKey,
+  type TreeChildrenKey,
   type TreeNodeData,
   type TreeProperty,
 } from './util'
@@ -570,9 +570,9 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
     if (!data) return null;
 
     const props = this.store.props;
-    let children: TreeDataKey<T> = "children" as TreeDataKey<T>;
+    let children: TreeChildrenKey<T> = "children" as TreeChildrenKey<T>;
     if (props) {
-      children = props.children || ("children" as TreeDataKey<T>);
+      children = props.children || ("children" as TreeChildrenKey<T>);
     }
 
     const dataRecord = data as Record<string, unknown>
