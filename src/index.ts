@@ -215,6 +215,13 @@ export interface VueVirtualTreeEventMap<
 > {
   'node-click': [data: T, node: Node<T>, instance: VueVirtualTreeNodeInstance<T>]
   'node-expand': [data: T, node: Node<T>, instance: VueVirtualTreeNodeInstance<T>]
+  'node-collapse': [data: T, node: Node<T>, instance: VueVirtualTreeNodeInstance<T>]
+  'node-contextmenu': [
+    event: MouseEvent,
+    data: T,
+    node: Node<T>,
+    instance: VueVirtualTreeNodeInstance<T>,
+  ]
   'current-change': [data: T | null, node: Node<T> | null]
   'check-change': [data: T, checked: boolean, indeterminate: boolean]
   check: [data: T, state: VueVirtualTreeCheckState<T>]

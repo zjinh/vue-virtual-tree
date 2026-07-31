@@ -21,6 +21,7 @@ import SourceVueVirtualTree, {
   type VueVirtualTreeDefaultSlotProps as SourceVueVirtualTreeDefaultSlotProps,
   type VueVirtualTreeEventMap as SourceVueVirtualTreeEventMap,
   type VueVirtualTreeInstance as SourceVueVirtualTreeInstance,
+  type VueVirtualTreeNodeInstance as SourceVueVirtualTreeNodeInstance,
   type VueVirtualTreePlugin as SourceVueVirtualTreePlugin,
   type VueVirtualTreeProps as SourceVueVirtualTreeProps,
   type VueVirtualTreeRegistrar as SourceVueVirtualTreeRegistrar,
@@ -40,6 +41,7 @@ import {
   type VueVirtualTreeDefaultSlotProps,
   type VueVirtualTreeEventMap,
   type VueVirtualTreeInstance,
+  type VueVirtualTreeNodeInstance,
   type VueVirtualTreeProps,
 } from '@zjinh/vue-virtual-tree/vue2'
 
@@ -211,6 +213,15 @@ type ExpectedInstanceKeys =
   | 'insertAfter'
   | 'updateKeyChildren'
 
+type ExpectedEventKeys =
+  | 'node-click'
+  | 'node-expand'
+  | 'node-collapse'
+  | 'node-contextmenu'
+  | 'current-change'
+  | 'check-change'
+  | 'check'
+
 type PropsExposeExactlyTheRuntimeProps = Assert<
   Equal<keyof VueVirtualTreeProps<ConsumerTreeNode>, ExpectedPropKeys>
 >
@@ -231,6 +242,30 @@ type SourceSlotMatchesDist = Assert<
 >
 type SourceEventsMatchDist = Assert<
   Equal<SourceVueVirtualTreeEventMap<ConsumerTreeNode>, VueVirtualTreeEventMap<ConsumerTreeNode>>
+>
+type EventsExposeExactlyTheRuntimeEvents = Assert<
+  Equal<keyof VueVirtualTreeEventMap<ConsumerTreeNode>, ExpectedEventKeys>
+>
+type ContextMenuEventParametersMatch = Assert<
+  Equal<
+    VueVirtualTreeEventMap<ConsumerTreeNode>['node-contextmenu'],
+    [
+      event: MouseEvent,
+      data: ConsumerTreeNode,
+      node: TreeNode<ConsumerTreeNode>,
+      instance: VueVirtualTreeNodeInstance<ConsumerTreeNode>,
+    ]
+  >
+>
+type CollapseEventParametersMatch = Assert<
+  Equal<
+    VueVirtualTreeEventMap<ConsumerTreeNode>['node-collapse'],
+    [
+      data: ConsumerTreeNode,
+      node: TreeNode<ConsumerTreeNode>,
+      instance: VueVirtualTreeNodeInstance<ConsumerTreeNode>,
+    ]
+  >
 >
 
 const componentProps: VueVirtualTreeProps<ConsumerTreeNode> = {
@@ -309,6 +344,27 @@ const checkEvent: VueVirtualTreeEventMap<ConsumerTreeNode>['check'] = [
   checkState,
 ]
 const sourceCheckEvent: SourceVueVirtualTreeEventMap<ConsumerTreeNode>['check'] = checkEvent
+declare const contextMenuMouseEvent: MouseEvent
+const eventNodeInstance: VueVirtualTreeNodeInstance<ConsumerTreeNode> = {
+  node: modelNode!,
+}
+const sourceEventNodeInstance: SourceVueVirtualTreeNodeInstance<ConsumerTreeNode> =
+  eventNodeInstance
+const contextMenuEvent: VueVirtualTreeEventMap<ConsumerTreeNode>['node-contextmenu'] = [
+  contextMenuMouseEvent,
+  slotProps.item,
+  modelNode!,
+  eventNodeInstance,
+]
+const sourceContextMenuEvent: SourceVueVirtualTreeEventMap<ConsumerTreeNode>['node-contextmenu'] =
+  contextMenuEvent
+const collapseEvent: VueVirtualTreeEventMap<ConsumerTreeNode>['node-collapse'] = [
+  slotProps.item,
+  modelNode!,
+  eventNodeInstance,
+]
+const sourceCollapseEvent: SourceVueVirtualTreeEventMap<ConsumerTreeNode>['node-collapse'] =
+  collapseEvent
 
 void modelNode
 void sourceNode
@@ -323,6 +379,11 @@ void checkState
 void slotProps
 void checkEvent
 void sourceCheckEvent
+void sourceEventNodeInstance
+void contextMenuEvent
+void sourceContextMenuEvent
+void collapseEvent
+void sourceCollapseEvent
 void invalidDistChildrenProps
 void invalidSourceChildrenProps
 void invalidDistLeafProps
@@ -356,4 +417,7 @@ export type {
   SourceCheckStateMatchesDist,
   SourceSlotMatchesDist,
   SourceEventsMatchDist,
+  EventsExposeExactlyTheRuntimeEvents,
+  ContextMenuEventParametersMatch,
+  CollapseEventParametersMatch,
 }
