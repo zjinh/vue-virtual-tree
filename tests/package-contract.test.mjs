@@ -43,6 +43,10 @@ test('declares the pnpm workspace and reproducible toolchain', async () => {
   for (const path of ['node_modules/', '.pnpm-store/', 'dist/', '.idea/']) {
     assert.ok(ignoredPaths.has(path), `.gitignore must contain ${path}`)
   }
+  assert.ok(
+    ignoredPaths.has('.release/'),
+    '.release/package.tgz must be ignored through .release/',
+  )
 })
 
 test('publishes Vue 3 by default and explicit Vue 2 and Vue 3 subpaths', () => {
