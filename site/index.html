@@ -323,6 +323,9 @@
 
     <script>
       (() => {
+        const READY_MESSAGE_SOURCE = '@zjinh/vue-virtual-tree/demo'
+        const READY_MESSAGE_TYPE = 'ready'
+        const READY_TIMEOUT_MS = 10000
         const demos = {
           vue2: { label: 'Vue 2.7', url: '/vue-virtual-tree/vue2/' },
           vue3: { label: 'Vue 3', url: '/vue-virtual-tree/vue3/' },
@@ -335,12 +338,22 @@
         const loadState = panel.querySelector('[data-load-state]')
         const errorState = panel.querySelector('[data-error-state]')
         let selectedRuntime = 'vue3'
+        let loadGeneration = 0
+        let readyTimer
+
+        function cancelReadyTimer() {
+          if (readyTimer === undefined) return
+          window.clearTimeout(readyTimer)
+          readyTimer = undefined
+        }
 
         function selectRuntime(runtime) {
           const demo = demos[runtime]
           if (!demo) return
 
+          cancelReadyTimer()
           selectedRuntime = runtime
+          const generation = String(++loadGeneration)
           for (const tab of tabs) {
             const selected = tab.dataset.runtime === runtime
             tab.setAttribute('aria-selected', String(selected))
@@ -357,9 +370,33 @@
           errorState.hidden = true
           errorState.querySelector('a').href = demo.url
           errorState.querySelector('a').textContent = `Open ${demo.label} demo directly`
-          frame.src = demo.url
+          readyTimer = window.setTimeout(() => {
+            if (generation !== String(loadGeneration) || runtime !== selectedRuntime) return
+            readyTimer = undefined
+            loadState.hidden = true
+            errorState.hidden = false
+          }, READY_TIMEOUT_MS)
+          frame.src = `${demo.url}?generation=${encodeURIComponent(generation)}`
           history.replaceState(null, '', `#${runtime}`)
         }
+
+        window.addEventListener('message', (event) => {
+          const message = event.data
+          if (
+            event.source !== frame.contentWindow
+            || event.origin !== window.location.origin
+            || !message
+            || typeof message !== 'object'
+            || message.source !== READY_MESSAGE_SOURCE
+            || message.type !== READY_MESSAGE_TYPE
+            || message.runtime !== selectedRuntime
+            || message.generation !== String(loadGeneration)
+          ) return
+
+          cancelReadyTimer()
+          loadState.hidden = true
+          errorState.hidden = true
+        })
 
         for (const [index, tab] of tabs.entries()) {
           tab.addEventListener('click', () => selectRuntime(tab.dataset.runtime))
@@ -377,14 +414,6 @@
             nextTab.focus()
           })
         }
-
-        frame.addEventListener('load', () => {
-          loadState.hidden = true
-        })
-        frame.addEventListener('error', () => {
-          loadState.hidden = true
-          errorState.hidden = false
-        })
 
         const requestedRuntime = location.hash.slice(1)
         selectRuntime(demos[requestedRuntime] ? requestedRuntime : selectedRuntime)
