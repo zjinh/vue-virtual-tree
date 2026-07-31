@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
+import { promisify } from 'node:util'
+import { execFile } from 'node:child_process'
 import {
+  cp,
   copyFile,
   mkdir,
   mkdtemp,
   readFile,
   rm,
-  symlink,
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -40,8 +43,29 @@ test('emits one public stylesheet covering both scoped builds', async () => {
   ])
 
   assert.ok(publicCss.length > 0)
-  assert.ok(publicCss.includes(vue2Css))
-  assert.ok(publicCss.includes(vue3Css))
+  assert.equal(publicCss, `${vue2Css}\n${vue3Css}`)
+})
+
+test('consecutive builds emit byte-identical artifacts', async () => {
+  const run = promisify(execFile)
+  const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+  const paths = [
+    'index.d.ts',
+    'style.css',
+    'vue2/index.js',
+    'vue2/style.css',
+    'vue3/index.js',
+    'vue3/style.css',
+  ]
+  const snapshot = async () => Promise.all(
+    paths.map(async (path) => createHash('sha256').update(await readDist(path)).digest('hex')),
+  )
+
+  await run(command, ['run', 'build'], { cwd: fileURLToPath(root) })
+  const firstBuild = await snapshot()
+  await run(command, ['run', 'build'], { cwd: fileURLToPath(root) })
+
+  assert.deepEqual(await snapshot(), firstBuild)
 })
 
 test('emits a public declaration contract', async () => {
@@ -84,14 +108,18 @@ test('loads the Vue 2 build against the Vue 2.7 runtime', async () => {
     const vue2Runtime = fileURLToPath(new URL('../node_modules/vue2', import.meta.url))
 
     await mkdir(temporaryNodeModules)
-    await symlink(vue2Runtime, join(temporaryNodeModules, 'vue'), 'dir')
+    const temporaryVue2Runtime = join(temporaryNodeModules, 'vue')
+    await cp(vue2Runtime, temporaryVue2Runtime, {
+      dereference: true,
+      recursive: true,
+    })
     await copyFile(
       fileURLToPath(new URL('../dist/vue2/index.js', import.meta.url)),
       temporaryEntry,
     )
 
     const entry = await import(pathToFileURL(temporaryEntry).href)
-    const vue = await import(pathToFileURL(join(vue2Runtime, 'dist/vue.runtime.mjs')).href)
+    const vue = await import(pathToFileURL(join(temporaryVue2Runtime, 'dist/vue.runtime.mjs')).href)
 
     assert.match(vue.version, /^2\.7\./)
     assert.equal(typeof entry.VueVirtualTree.install, 'function')

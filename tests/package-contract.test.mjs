@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 const root = new URL('../', import.meta.url)
 const packageJson = JSON.parse(
   await readFile(new URL('package.json', root), 'utf8'),
 )
+
+function assertOrderedGates(scriptName, gates) {
+  const script = packageJson.scripts[scriptName]
+  let previousIndex = -1
+
+  for (const gate of gates) {
+    const index = script.indexOf(gate)
+    assert.ok(index > previousIndex, `${gate} must follow the preceding ${scriptName} gate`)
+    previousIndex = index
+  }
+}
 
 test('declares the pnpm workspace and reproducible toolchain', async () => {
   assert.equal(packageJson.name, '@zjinh/vue-virtual-tree')
@@ -65,7 +76,9 @@ test('declares the consumer and publication boundaries', () => {
 })
 
 test('defines package and release gates around tsdown', () => {
-  assert.equal(packageJson.scripts.build, 'tsdown')
+  assert.match(packageJson.scripts.build, /^tsdown && /)
+  assert.match(packageJson.scripts.build, /tsc -p tsconfig\.declarations\.json/)
+  assert.match(packageJson.scripts.build, /node scripts\/finalize-build\.mjs$/)
   assert.equal(packageJson.scripts.typecheck, 'tsc --noEmit')
   assert.match(packageJson.scripts['test:package'], /package-contract/)
   assert.match(packageJson.scripts['test:artifacts'], /artifact-contract/)
@@ -75,12 +88,50 @@ test('defines package and release gates around tsdown', () => {
   assert.match(packageJson.scripts.prepack, /test:artifacts/)
   assert.match(packageJson.scripts.prepublishOnly, /release:check/)
 
-  const releaseCheck = packageJson.scripts['release:check']
-  const orderedGates = ['typecheck', 'build', 'test:artifacts', 'test:types', 'publint']
-  let previousIndex = -1
-  for (const gate of orderedGates) {
-    const index = releaseCheck.indexOf(gate)
-    assert.ok(index > previousIndex, `${gate} must follow the preceding release gate`)
-    previousIndex = index
-  }
+  assert.match(packageJson.scripts.test, /^pnpm run test:package/)
+  assertOrderedGates('test', [
+    'test:package',
+    'typecheck',
+    'build',
+    'test:artifacts',
+    'test:types',
+  ])
+
+  assert.match(packageJson.scripts['release:check'], /^pnpm run test:package/)
+  assertOrderedGates('release:check', [
+    'test:package',
+    'typecheck',
+    'build',
+    'test:artifacts',
+    'test:types',
+    'publint',
+  ])
+})
+
+test('finalizes public artifacts without module-level build coordination', async () => {
+  const config = await readFile(new URL('tsdown.config.ts', root), 'utf8')
+  assert.doesNotMatch(config, /completedBuilds|cleanedPublicFiles|publishContract/)
+  assert.equal(config.match(/clean:\s*true/g)?.length, 2)
+  assert.match(config, /Vue 2 compiler types differ from the root Vue 3 compiler types/)
+  assert.match(config, /as unknown as NonNullable<\s*Vue2PluginOptions\['compiler'\]/)
+
+  const finalizer = await readFile(new URL('scripts/finalize-build.mjs', root), 'utf8')
+  assert.match(finalizer, /dist\/vue2\/style\.css/)
+  assert.match(finalizer, /dist\/vue3\/style\.css/)
+  assert.match(finalizer, /rename/)
+})
+
+test('derives the published declaration from the source entry point', async () => {
+  await assert.rejects(
+    access(new URL('src/public.d.ts', root)),
+    (error) => error?.code === 'ENOENT',
+  )
+
+  const declarationConfig = JSON.parse(
+    await readFile(new URL('tsconfig.declarations.json', root), 'utf8'),
+  )
+  assert.equal(declarationConfig.compilerOptions.declaration, true)
+  assert.equal(declarationConfig.compilerOptions.emitDeclarationOnly, true)
+  assert.equal(declarationConfig.compilerOptions.noEmit, false)
+  assert.deepEqual(declarationConfig.include, ['src/index.ts', 'src/vue-shim.d.ts'])
 })

@@ -5,6 +5,11 @@ import VueVirtualTree, {
   type VueVirtualTreePlugin,
   type VueVirtualTreeRegistrar,
 } from '@zjinh/vue-virtual-tree/vue2'
+import SourceVueVirtualTree, {
+  VueVirtualTree as SourceNamedVueVirtualTree,
+  type VueVirtualTreePlugin as SourceVueVirtualTreePlugin,
+  type VueVirtualTreeRegistrar as SourceVueVirtualTreeRegistrar,
+} from '../../../src/index'
 
 type Equal<Left, Right> =
   (<Value>() => Value extends Left ? 1 : 2) extends
@@ -19,6 +24,15 @@ type InstallRegistrarMatches = Assert<
   Equal<Parameters<VueVirtualTreePlugin['install']>[0], VueVirtualTreeRegistrar>
 >
 type DefaultExportMatchesPlugin = Assert<Equal<typeof VueVirtualTree, VueVirtualTreePlugin>>
+type NamedExportMatchesDefault = Assert<Equal<typeof NamedVueVirtualTree, typeof VueVirtualTree>>
+type SourceRegistrarMatchesDist = Assert<
+  Equal<SourceVueVirtualTreeRegistrar, VueVirtualTreeRegistrar>
+>
+type SourcePluginMatchesDist = Assert<Equal<SourceVueVirtualTreePlugin, VueVirtualTreePlugin>>
+type SourceDefaultMatchesDist = Assert<Equal<typeof SourceVueVirtualTree, typeof VueVirtualTree>>
+type SourceNamedMatchesDefault = Assert<
+  Equal<typeof SourceNamedVueVirtualTree, typeof SourceVueVirtualTree>
+>
 
 const plugin: VueVirtualTreePlugin = VueVirtualTree
 const namedPlugin: typeof VueVirtualTree = NamedVueVirtualTree
@@ -31,5 +45,10 @@ Vue.use(plugin)
 export type {
   DefaultExportMatchesPlugin,
   InstallRegistrarMatches,
+  NamedExportMatchesDefault,
   RegistrarComponentMatches,
+  SourceDefaultMatchesDist,
+  SourceNamedMatchesDefault,
+  SourcePluginMatchesDist,
+  SourceRegistrarMatchesDist,
 }

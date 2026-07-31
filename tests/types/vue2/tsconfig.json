@@ -11,5 +11,5 @@
       "vue": ["../../../node_modules/vue2"]
     }
   },
-  "include": ["./index.ts"]
+  "include": ["./index.ts", "../../../src/vue-shim.d.ts"]
 }
