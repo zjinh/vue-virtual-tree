@@ -356,7 +356,7 @@ function selectFirstChild() {
 8. `setCheckedNodes(nodes: T[], leafOnly?: boolean): void` 使用原始数据替换复选状态，需要 `nodeKey`。
 9. `setCheckedKeys(keys: TreeKey[], leafOnly?: boolean): void` 使用 key 替换复选状态，需要 `nodeKey`。
 10. `setChecked(data: TreeNodeReference<T>, checked: boolean, deep?: boolean): void` 改变一个可解析节点，无法解析的引用会被忽略。
-11. `setCheckedAll(checked?: boolean): void` 改变全部已注册节点，`checked` 默认是 `true`。
+11. `setCheckedAll(checked?: boolean): void` 需要 `nodeKey`，否则不执行任何节点。它会改变全部已注册节点，`checked` 默认是 `true`。
 12. `getHalfCheckedNodes(): T[]` 返回半选节点数据。
 13. `getHalfCheckedKeys(): Array<TreeKey | undefined>` 返回半选节点 key。
 14. `getSelectedLeafNodes(): T[]` 返回已选叶子数据。未启用 `selectChildrenOnly` 时等价于已选叶子节点。

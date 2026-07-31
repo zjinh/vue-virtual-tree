@@ -225,6 +225,15 @@ test('lists all public methods, event payloads, slot values, and key types', () 
   }
 })
 
+test('documents the nodeKey requirement for setCheckedAll in both languages', () => {
+  assert.ok(english?.includes(
+    '`setCheckedAll(checked?: boolean): void` requires `nodeKey`; without it the method is a no-op.',
+  ))
+  assert.ok(chinese?.includes(
+    '`setCheckedAll(checked?: boolean): void` 需要 `nodeKey`，否则不执行任何节点。',
+  ))
+})
+
 test('explains the scope of development, artifact, package, and Pages gates', () => {
   const commands = [
     'pnpm install --frozen-lockfile',

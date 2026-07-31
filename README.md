@@ -356,7 +356,7 @@ All methods below are exposed on `VueVirtualTreeInstance<T>`.
 8. `setCheckedNodes(nodes: T[], leafOnly?: boolean): void` replaces checkbox selection from raw data and requires `nodeKey`.
 9. `setCheckedKeys(keys: TreeKey[], leafOnly?: boolean): void` replaces checkbox selection from keys and requires `nodeKey`.
 10. `setChecked(data: TreeNodeReference<T>, checked: boolean, deep?: boolean): void` changes one resolved node; an unknown reference is ignored.
-11. `setCheckedAll(checked?: boolean): void` changes all registered nodes; `checked` defaults to `true`.
+11. `setCheckedAll(checked?: boolean): void` requires `nodeKey`; without it the method is a no-op. It changes all registered nodes, and `checked` defaults to `true`.
 12. `getHalfCheckedNodes(): T[]` returns indeterminate-node data.
 13. `getHalfCheckedKeys(): Array<TreeKey | undefined>` returns indeterminate-node keys.
 14. `getSelectedLeafNodes(): T[]` returns selected leaf data. Outside `selectChildrenOnly` mode it is equivalent to checked leaf nodes.
