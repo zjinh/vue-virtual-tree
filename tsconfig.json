@@ -7,10 +7,10 @@
     "strict": true,
     "skipLibCheck": true,
     "types": ["node"],
-    "allowJs": true,
+    "allowJs": false,
     "checkJs": false,
     "noEmit": true,
     "isolatedModules": true
   },
-  "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.vue", "tsdown.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "tsdown.config.ts"]
 }

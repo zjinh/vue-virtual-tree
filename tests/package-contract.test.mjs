@@ -81,6 +81,7 @@ test('defines package and release gates around tsdown', () => {
   assert.match(packageJson.scripts.build, /node scripts\/finalize-build\.mjs$/)
   assert.equal(packageJson.scripts.typecheck, 'tsc --noEmit')
   assert.match(packageJson.scripts['test:package'], /package-contract/)
+  assert.equal(packageJson.scripts['test:model'], 'vitest run tests/model')
   assert.match(packageJson.scripts['test:artifacts'], /artifact-contract/)
   assert.match(packageJson.scripts['test:types'], /tests\/types\/vue3\/tsconfig\.json/)
   assert.match(packageJson.scripts['test:types'], /tests\/types\/vue2\/tsconfig\.json/)
@@ -91,6 +92,7 @@ test('defines package and release gates around tsdown', () => {
   assert.match(packageJson.scripts.test, /^pnpm run test:package/)
   assertOrderedGates('test', [
     'test:package',
+    'test:model',
     'typecheck',
     'build',
     'test:artifacts',
@@ -100,12 +102,31 @@ test('defines package and release gates around tsdown', () => {
   assert.match(packageJson.scripts['release:check'], /^pnpm run test:package/)
   assertOrderedGates('release:check', [
     'test:package',
+    'test:model',
     'typecheck',
     'build',
     'test:artifacts',
     'test:types',
     'publint',
   ])
+})
+
+test('keeps the tree model exclusively in TypeScript and inside package typecheck', async () => {
+  const modelFiles = ['util', 'node', 'tree-store']
+
+  for (const modelFile of modelFiles) {
+    await access(new URL(`src/model/${modelFile}.ts`, root))
+    await assert.rejects(
+      access(new URL(`src/model/${modelFile}.js`, root)),
+      (error) => error?.code === 'ENOENT',
+    )
+  }
+
+  const tsconfig = JSON.parse(await readFile(new URL('tsconfig.json', root), 'utf8'))
+  assert.equal(tsconfig.compilerOptions.strict, true)
+  assert.equal(tsconfig.compilerOptions.allowJs, false)
+  assert.ok(tsconfig.include.includes('src/**/*.ts'))
+  assert.ok(!tsconfig.include.includes('src/**/*.js'))
 })
 
 test('cleans the exact repository dist directory before building', async () => {

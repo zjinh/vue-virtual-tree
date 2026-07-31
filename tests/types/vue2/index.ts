@@ -6,10 +6,28 @@ import VueVirtualTree, {
   type VueVirtualTreeRegistrar,
 } from '@zjinh/vue-virtual-tree/vue2'
 import SourceVueVirtualTree, {
+  Node as SourceNode,
+  TreeStore as SourceTreeStore,
   VueVirtualTree as SourceNamedVueVirtualTree,
+  type FilterFunction as SourceFilterFunction,
+  type LoadFunction as SourceLoadFunction,
+  type TreeKey as SourceTreeKey,
+  type TreeNode as SourceTreeNode,
+  type TreeNodeData as SourceTreeNodeData,
+  type TreeOptionProps as SourceTreeOptionProps,
   type VueVirtualTreePlugin as SourceVueVirtualTreePlugin,
   type VueVirtualTreeRegistrar as SourceVueVirtualTreeRegistrar,
 } from '../../../src/index'
+import {
+  Node,
+  TreeStore,
+  type FilterFunction,
+  type LoadFunction,
+  type TreeKey,
+  type TreeNode,
+  type TreeNodeData,
+  type TreeOptionProps,
+} from '@zjinh/vue-virtual-tree/vue2'
 
 type Equal<Left, Right> =
   (<Value>() => Value extends Left ? 1 : 2) extends
@@ -33,6 +51,46 @@ type SourceDefaultMatchesDist = Assert<Equal<typeof SourceVueVirtualTree, typeof
 type SourceNamedMatchesDefault = Assert<
   Equal<typeof SourceNamedVueVirtualTree, typeof SourceVueVirtualTree>
 >
+
+interface ConsumerTreeNode extends TreeNodeData {
+  id: TreeKey
+  name: string
+  children?: ConsumerTreeNode[]
+  disabled?: boolean
+}
+
+const props: TreeOptionProps<ConsumerTreeNode> = {
+  children: 'children',
+  label: (data) => data.name,
+  disabled: 'disabled',
+}
+const load: LoadFunction<ConsumerTreeNode> = (_node, resolve) => resolve([])
+const filter: FilterFunction<ConsumerTreeNode, string> = (value, data) =>
+  data.name.includes(value)
+const modelStore = new TreeStore<ConsumerTreeNode>({
+  data: [{ id: 1, name: 'root' }],
+  key: 'id',
+  props,
+  load,
+  filterNodeMethod: filter,
+})
+const modelNode: TreeNode<ConsumerTreeNode> | null = modelStore.getNode(1)
+const sourceStore = new SourceTreeStore<ConsumerTreeNode>({ data: [], key: 'id' })
+const sourceNode: SourceTreeNode<ConsumerTreeNode> | null = sourceStore.getNode(1)
+const nodeConstructor: typeof Node = SourceNode
+const sourceKey: SourceTreeKey = 1
+const sourceData: SourceTreeNodeData = { id: sourceKey }
+const sourceProps: SourceTreeOptionProps<ConsumerTreeNode> = props
+const sourceLoad: SourceLoadFunction<ConsumerTreeNode> = load
+const sourceFilter: SourceFilterFunction<ConsumerTreeNode, string> = filter
+
+void modelNode
+void sourceNode
+void nodeConstructor
+void sourceData
+void sourceProps
+void sourceLoad
+void sourceFilter
 
 const plugin: VueVirtualTreePlugin = VueVirtualTree
 const namedPlugin: typeof VueVirtualTree = NamedVueVirtualTree

@@ -47,7 +47,7 @@
 <script type="text/jsx">
 import {defineComponent} from "vue"
 import Checkbox from "./checkbox.vue";
-import {getNodeKey} from "../model/util.js";
+import {getNodeKey} from "../model/util";
 export default defineComponent({
   name: "virtualTreeNode",
   componentName: "virtualTreeNode",
