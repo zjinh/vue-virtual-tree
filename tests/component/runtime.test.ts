@@ -24,6 +24,7 @@ interface RuntimeTreeInstance extends VueVirtualTreeInstance<Item> {
 
 interface MountOptions {
   data?: Item[]
+  highlightCurrent?: boolean
   useSlot?: boolean
 }
 
@@ -34,6 +35,8 @@ interface MountResult {
     check: unknown[][]
     currentChange: unknown[][]
     nodeClick: unknown[][]
+    nodeCollapse: unknown[][]
+    nodeExpand: unknown[][]
   }
   unmount(): void
 }
@@ -90,12 +93,15 @@ const mountTree = async (options: MountOptions = {}): Promise<MountResult> => {
     check: [] as unknown[][],
     currentChange: [] as unknown[][],
     nodeClick: [] as unknown[][],
+    nodeCollapse: [] as unknown[][],
+    nodeExpand: [] as unknown[][],
   }
   const props = {
     data: options.data ?? createTreeData(),
     defaultExpandAll: true,
     filterNodeMethod: (value: string, data: Item) => data.label.includes(value),
     height: '260px',
+    highlightCurrent: options.highlightCurrent ?? false,
     itemSize: 26,
     nodeKey: 'id',
     props: {
@@ -119,6 +125,8 @@ const mountTree = async (options: MountOptions = {}): Promise<MountResult> => {
             check: (...args: unknown[]) => events.check.push(args),
             'current-change': (...args: unknown[]) => events.currentChange.push(args),
             'node-click': (...args: unknown[]) => events.nodeClick.push(args),
+            'node-collapse': (...args: unknown[]) => events.nodeCollapse.push(args),
+            'node-expand': (...args: unknown[]) => events.nodeExpand.push(args),
           },
           props,
           ref: 'tree',
@@ -149,6 +157,8 @@ const mountTree = async (options: MountOptions = {}): Promise<MountResult> => {
               onCheck: (...args: unknown[]) => events.check.push(args),
               onCurrentChange: (...args: unknown[]) => events.currentChange.push(args),
               onNodeClick: (...args: unknown[]) => events.nodeClick.push(args),
+              onNodeCollapse: (...args: unknown[]) => events.nodeCollapse.push(args),
+              onNodeExpand: (...args: unknown[]) => events.nodeExpand.push(args),
               ref: (value: unknown) => {
                 instance = value as RuntimeTreeInstance
               },
@@ -299,6 +309,38 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
     expect(result.events.check.at(-1)?.[1]).toMatchObject({
       checkedKeys: expect.arrayContaining([1, 2]),
     })
+  })
+
+  test('emits collapse and expand only through the built-in node control', async () => {
+    const result = await mountTree()
+    const expandControl = result.host.querySelector<HTMLElement>('.expand-icon')
+
+    expect(expandControl).not.toBeNull()
+    expandControl?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await settle()
+    expect(result.events.nodeCollapse.at(-1)?.[0]).toMatchObject({ id: 1 })
+
+    expandControl?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await settle()
+    expect(result.events.nodeExpand.at(-1)?.[0]).toMatchObject({ id: 1 })
+  })
+
+  test('gates current-node styling with highlightCurrent without changing current state', async () => {
+    const disabled = await mountTree({ highlightCurrent: false })
+    const disabledNode = disabled.host.querySelector<HTMLElement>('.virtual-tree-node')
+    disabledNode?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await settle()
+
+    expect(disabled.instance.getCurrentKey()).toBe(1)
+    expect(disabledNode?.classList.contains('is-current')).toBe(false)
+
+    const enabled = await mountTree({ highlightCurrent: true })
+    const enabledNode = enabled.host.querySelector<HTMLElement>('.virtual-tree-node')
+    enabledNode?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await settle()
+
+    expect(enabled.instance.getCurrentKey()).toBe(1)
+    expect(enabledNode?.classList.contains('is-current')).toBe(true)
   })
 
   test('supports representative filter, path, check, current, and mutation methods', async () => {

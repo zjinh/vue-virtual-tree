@@ -444,6 +444,20 @@ code,
   background: color-mix(in srgb, var(--accent) 7%, var(--surface));
 }
 
+.default-node-content .virtual-tree-node {
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.default-node-content .virtual-tree-node .name {
+  min-width: 150px;
+}
+
+.workbench-caret::before {
+  content: ">";
+}
+
 .demo-tree-node {
   display: flex;
   width: 100%;

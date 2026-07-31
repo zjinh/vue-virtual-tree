@@ -91,6 +91,15 @@
             </div>
             <div class="dataset-actions" aria-label="Dataset presets">
               <button
+                class="button button-muted compact-button content-mode-button"
+                type="button"
+                :aria-pressed="customSlotEnabled ? 'true' : 'false'"
+                :disabled="busy"
+                @click="toggleNodeContentMode"
+              >
+                {{ customSlotEnabled ? 'Scoped slot content' : 'Built-in node content' }}
+              </button>
+              <button
                 v-for="preset in presets"
                 :key="preset"
                 class="button button-muted compact-button"
@@ -122,70 +131,65 @@
 
           <div class="tree-frame" :style="{ height: `${appliedOptions.height}px` }" :aria-busy="busy ? 'true' : 'false'">
             <div v-if="busy" class="busy-bar" role="status">{{ busyLabel }}</div>
-            <vue-virtual-tree
-              :key="treeVersion"
-              ref="tree"
-              :data="treeData"
-              :empty-text="appliedOptions.emptyText"
-              node-key="id"
-              :check-strictly="appliedOptions.checkStrictly"
-              :default-expand-all="appliedOptions.defaultExpandAll"
-              :check-descendants="appliedOptions.checkDescendants"
-              :select-children-only="appliedOptions.selectChildrenOnly"
-              :item-size="appliedOptions.itemSize"
-              :auto-expand-parent="appliedOptions.autoExpandParent"
-              :default-checked-keys="parseKeyList(appliedOptions.defaultCheckedKeys)"
-              :default-expanded-keys="parseKeyList(appliedOptions.defaultExpandedKeys)"
-              :current-node-key="appliedOptions.currentNodeKey || undefined"
-              :show-checkbox="appliedOptions.showCheckbox"
-              :props="treeOptionProps"
-              :lazy="appliedOptions.lazy"
-              :highlight-current="appliedOptions.highlightCurrent"
-              :load="loadLazyNode"
-              :filter-node-method="filterNode"
-              :indent="appliedOptions.indent"
-              :icon-class="appliedOptions.iconClass"
-              :height="appliedOptions.height"
-              @node-click="onNodeClick"
-              @node-contextmenu="onNodeContextmenu"
-              @current-change="onCurrentChange"
-              @node-expand="onNodeExpand"
-              @node-collapse="onNodeCollapse"
-              @check-change="onCheckChange"
-              @check="onCheck"
-            >
-              <template v-slot="{ node, item, selectChange }">
-                <div class="demo-tree-node" :class="{ 'is-current': node.isCurrent }">
-                  <span class="node-indent" :style="{ width: `${Math.max(0, node.level - 1) * appliedOptions.indent}px` }"></span>
-                  <button
-                    class="node-expand-button"
-                    type="button"
-                    :disabled="node.isLeaf"
-                    :aria-label="node.isLeaf ? `Leaf node ${item.label}` : (node.expanded ? `Collapse ${item.label}` : `Expand ${item.label}`)"
-                    :aria-expanded="node.isLeaf ? undefined : node.expanded"
-                    @click.stop="toggleSlotNode(node)"
+            <div v-if="customSlotEnabled" class="custom-node-content">
+              <vue-virtual-tree
+                :key="`custom-${treeVersion}`"
+                ref="tree"
+                v-bind="treeBindings"
+                @node-click="onNodeClick"
+                @node-contextmenu="onNodeContextmenu"
+                @current-change="onCurrentChange"
+                @node-expand="onNodeExpand"
+                @node-collapse="onNodeCollapse"
+                @check-change="onCheckChange"
+                @check="onCheck"
+              >
+                <template v-slot="{ node, item, selectChange }">
+                  <div
+                    class="demo-tree-node"
+                    :class="{ 'is-current': appliedOptions.highlightCurrent && node.isCurrent }"
                   >
-                    {{ node.isLeaf ? '·' : (node.expanded ? '−' : '+') }}
-                  </button>
-                  <input
-                    v-if="appliedOptions.showCheckbox"
-                    class="node-checkbox"
-                    type="checkbox"
-                    :checked="node.checked"
-                    :disabled="Boolean(node.disabled)"
-                    :aria-label="`Select ${item.label}`"
-                    @change.stop="applySlotSelection(selectChange, $event)"
-                  >
-                  <span class="node-label">{{ item.label }}</span>
-                  <code class="node-key">{{ item.id }}</code>
-                  <span v-if="node.loading" class="node-state">loading</span>
-                </div>
-              </template>
-            </vue-virtual-tree>
+                    <span class="node-indent" :style="{ width: `${Math.max(0, node.level - 1) * appliedOptions.indent}px` }"></span>
+                    <input
+                      v-if="appliedOptions.showCheckbox"
+                      class="node-checkbox"
+                      type="checkbox"
+                      :checked="node.checked"
+                      :disabled="Boolean(node.disabled)"
+                      :aria-label="`Select ${item.label}`"
+                      @change.stop="applySlotSelection(selectChange, $event)"
+                    >
+                    <span class="node-label">{{ item.label }}</span>
+                    <code class="node-key">{{ item.id }}</code>
+                    <span v-if="node.loading" class="node-state">loading</span>
+                  </div>
+                </template>
+              </vue-virtual-tree>
+            </div>
+            <div v-else class="default-node-content">
+              <vue-virtual-tree
+                :key="`default-${treeVersion}`"
+                ref="tree"
+                v-bind="treeBindings"
+                @node-click="onNodeClick"
+                @node-contextmenu="onNodeContextmenu"
+                @current-change="onCurrentChange"
+                @node-expand="onNodeExpand"
+                @node-collapse="onNodeCollapse"
+                @check-change="onCheckChange"
+                @check="onCheck"
+              ></vue-virtual-tree>
+            </div>
           </div>
           <p class="slot-note">
-            The default scoped slot renders every visible row. Its checkbox calls the exposed
-            <code>selectChange(checked)</code> function.
+            <template v-if="customSlotEnabled">
+              Scoped slot mode renders every visible row and its checkbox calls
+              <code>selectChange(checked)</code>. Switch to built-in content to test expand events and iconClass.
+            </template>
+            <template v-else>
+              Built-in node content uses the component's expand control, so node-expand and node-collapse
+              are emitted by the real component path. Current iconClass: <code>{{ appliedOptions.iconClass || 'not set' }}</code>.
+            </template>
           </p>
         </section>
 
@@ -220,7 +224,7 @@
           <div class="benchmark-actions" aria-label="Performance operations">
             <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('filter')">Measure filter</button>
             <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('setCheckedAll')">Measure setCheckedAll</button>
-            <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('scrollToItem')">Measure scrollToItem</button>
+            <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('scrollToItem')">Measure scrollToItem completion</button>
             <button class="button button-primary" type="button" :disabled="busy" @click="sampleScrollFrames">Sample scroll frames</button>
           </div>
 
@@ -321,18 +325,19 @@ import { TREE_EVENTS, TREE_METHODS, TREE_PROPS } from './api-manifest'
 import type { MethodManifestItem } from './api-manifest'
 import {
   calculateVirtualizationRatio,
+  countLogicalTreeNodes,
   nextAnimationFrame,
   readBrowserMemory,
   summarizeFrameSample,
+  waitForScrollToItemCompletion,
   waitForStablePaint,
 } from './benchmark'
-import type { FrameSummary } from './benchmark'
+import type { FrameSummary, LogicalTreeNode } from './benchmark'
 import {
   BENCHMARK_PRESETS,
   countTreeNodes,
   createLazyChildren,
   createLazyDemoData,
-  findTreeNode,
   generateTreeData,
 } from './data'
 import type { DemoTreeNode } from './data'
@@ -387,18 +392,6 @@ interface MethodGroup {
   methods: MethodManifestItem[]
 }
 
-interface SlotNode {
-  checked: boolean
-  disabled?: unknown
-  expanded: boolean
-  isCurrent: boolean
-  isLeaf: boolean
-  level: number
-  loading: boolean
-  collapse(): void
-  expand(): void
-}
-
 const initialOptions = (): DemoOptions => ({
   emptyText: 'No matching package nodes',
   checkStrictly: false,
@@ -414,7 +407,7 @@ const initialOptions = (): DemoOptions => ({
   lazy: false,
   highlightCurrent: true,
   indent: 16,
-  iconClass: '',
+  iconClass: 'workbench-caret',
   height: 420,
 })
 
@@ -458,6 +451,7 @@ export default defineComponent({
       filterQuery: '',
       targetKey: 'node-250',
       treeVersion: 0,
+      customSlotEnabled: false,
       mutationSequence: 0,
       busy: false,
       busyLabel: '',
@@ -471,6 +465,31 @@ export default defineComponent({
     }
   },
   computed: {
+    treeBindings(): Record<string, unknown> {
+      return {
+        data: this.treeData,
+        emptyText: this.appliedOptions.emptyText,
+        nodeKey: 'id',
+        checkStrictly: this.appliedOptions.checkStrictly,
+        defaultExpandAll: this.appliedOptions.defaultExpandAll,
+        checkDescendants: this.appliedOptions.checkDescendants,
+        selectChildrenOnly: this.appliedOptions.selectChildrenOnly,
+        itemSize: this.appliedOptions.itemSize,
+        autoExpandParent: this.appliedOptions.autoExpandParent,
+        defaultCheckedKeys: this.parseKeyList(this.appliedOptions.defaultCheckedKeys),
+        defaultExpandedKeys: this.parseKeyList(this.appliedOptions.defaultExpandedKeys),
+        currentNodeKey: this.appliedOptions.currentNodeKey || undefined,
+        showCheckbox: this.appliedOptions.showCheckbox,
+        props: this.treeOptionProps,
+        lazy: this.appliedOptions.lazy,
+        highlightCurrent: this.appliedOptions.highlightCurrent,
+        load: this.loadLazyNode,
+        filterNodeMethod: this.filterNode,
+        indent: this.appliedOptions.indent,
+        iconClass: this.appliedOptions.iconClass,
+        height: this.appliedOptions.height,
+      }
+    },
     methodGroups(): MethodGroup[] {
       return METHOD_GROUP_ORDER.map((name) => ({
         name,
@@ -500,6 +519,9 @@ export default defineComponent({
     setDraftBoolean(name: string, event: Event): void {
       const input = event.target as HTMLInputElement
       this.draftOptions[name] = input.checked
+      if (name === 'highlightCurrent') {
+        this.appliedOptions.highlightCurrent = input.checked
+      }
     },
     setDraftNumber(name: string, event: Event): void {
       const input = event.target as HTMLInputElement
@@ -523,6 +545,11 @@ export default defineComponent({
     parseKeyList(value: string | number | boolean): string[] {
       if (typeof value !== 'string') return []
       return value.split(',').map((key) => key.trim()).filter(Boolean)
+    },
+    async toggleNodeContentMode(): Promise<void> {
+      this.customSlotEnabled = !this.customSlotEnabled
+      this.treeVersion += 1
+      await this.refreshObservedMetrics()
     },
     applyAndRemount(): void {
       this.appliedOptions = { ...this.draftOptions }
@@ -582,12 +609,11 @@ export default defineComponent({
       node: { data: DemoTreeNode; level: number },
       resolve: (children: DemoTreeNode[]) => void,
     ): void {
-      window.setTimeout(() => resolve(createLazyChildren({ ...node.data, level: node.level })), 180)
-    },
-    toggleSlotNode(node: SlotNode): void {
-      if (node.isLeaf) return
-      if (node.expanded) node.collapse()
-      else node.expand()
+      window.setTimeout(async () => {
+        resolve(createLazyChildren({ ...node.data, level: node.level }))
+        await waitForStablePaint(() => this.$nextTick())
+        await this.refreshObservedMetrics()
+      }, 180)
     },
     applySlotSelection(selectChange: (checked: boolean) => void, event: Event): void {
       selectChange((event.target as HTMLInputElement).checked)
@@ -615,7 +641,7 @@ export default defineComponent({
       Object.defineProperty(context, 'targetNode', {
         enumerable: true,
         get: () => {
-          const targetNode = findTreeNode(this.treeData, this.targetKey)
+          const targetNode = this.getTree().getNode(this.targetKey)?.data as DemoTreeNode | undefined
           if (!targetNode) throw new Error(`Target ${this.targetKey} is not present in the current data`)
           return targetNode
         },
@@ -633,8 +659,10 @@ export default defineComponent({
       if (this.totalNodes >= 50_000) this.setBusy(`Running ${name} on ${this.formatCompact(this.totalNodes)} nodes`)
       try {
         const result = await action.run(this.getActionContext())
+        if (name === 'scrollToItem') {
+          await waitForScrollToItemCompletion({ nextTick: () => this.$nextTick() })
+        }
         this.recordMethodResult(name, startedAt, result)
-        await this.$nextTick()
         await this.refreshObservedMetrics()
       } catch (error) {
         this.recordMethodResult(name, startedAt, undefined, error)
@@ -647,10 +675,14 @@ export default defineComponent({
       await this.runNamedMethod(name)
       const stableDuration = performance.now() - startedAt
       const lastResult = this.methodResults[0]
+      const benchmarkName = name === 'scrollToItem' ? 'scrollToItem completion' : name
       if (lastResult?.name === name) {
-        this.addBenchmark(name, stableDuration, lastResult.error ? lastResult.value : `return ${lastResult.value}`)
+        const detail = name === 'scrollToItem' && !lastResult.error
+          ? `internal 50 ms positioning completed; return ${lastResult.value}`
+          : lastResult.error ? lastResult.value : `return ${lastResult.value}`
+        this.addBenchmark(benchmarkName, stableDuration, detail)
       } else {
-        this.addBenchmark(name, stableDuration, 'No result entry observed')
+        this.addBenchmark(benchmarkName, stableDuration, 'No result entry observed')
       }
     },
     recordMethodResult(name: string, startedAt: number, value?: unknown, caughtError?: unknown): void {
@@ -707,6 +739,10 @@ export default defineComponent({
     async refreshObservedMetrics(): Promise<void> {
       await this.$nextTick()
       await nextAnimationFrame()
+      const tree = this.$refs.tree as unknown as { root?: LogicalTreeNode } | undefined
+      this.totalNodes = tree?.root
+        ? countLogicalTreeNodes(tree.root)
+        : countTreeNodes(this.treeData)
       this.renderedNodes = document.querySelectorAll('.tree-frame .virtual-tree-node').length
       this.virtualizationRatio = calculateVirtualizationRatio(this.renderedNodes, this.totalNodes)
       this.memoryBytes = readBrowserMemory()

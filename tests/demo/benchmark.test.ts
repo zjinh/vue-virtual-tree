@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   calculateVirtualizationRatio,
+  countLogicalTreeNodes,
   percentile,
   summarizeFrameSample,
+  waitForScrollToItemCompletion,
 } from '../../examples/shared/benchmark'
 
 describe('percentile', () => {
@@ -31,5 +33,36 @@ describe('benchmark summaries', () => {
   it('calculates rendered-to-logical virtualization percentage', () => {
     expect(calculateVirtualizationRatio(60, 10_000)).toBe(99.4)
     expect(calculateVirtualizationRatio(0, 0)).toBeNull()
+    expect(calculateVirtualizationRatio(4, 2)).toBe(0)
+  })
+
+  it('counts current model nodes after runtime mutations', () => {
+    const root = {
+      childNodes: [
+        { childNodes: [] },
+        { childNodes: [{ childNodes: [] }] },
+      ],
+    }
+
+    expect(countLogicalTreeNodes(root)).toBe(3)
+    root.childNodes.pop()
+    expect(countLogicalTreeNodes(root)).toBe(1)
+  })
+
+  it('waits beyond the component 50ms positioning timer before reporting scroll completion', async () => {
+    const order: string[] = []
+    let requestedDelay = 0
+
+    await waitForScrollToItemCompletion({
+      nextTick: async () => { order.push('nextTick') },
+      wait: async (delay) => {
+        requestedDelay = delay
+        order.push('wait')
+      },
+      afterPaint: async () => { order.push('paint') },
+    })
+
+    expect(requestedDelay).toBeGreaterThan(50)
+    expect(order).toEqual(['nextTick', 'wait', 'paint'])
   })
 })

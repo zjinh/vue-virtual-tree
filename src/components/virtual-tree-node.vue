@@ -5,7 +5,7 @@
     class="virtual-tree-node"
     :class="{
       'is-expanded': expanded,
-      'is-current': node.isCurrent,
+      'is-current': tree.highlightCurrent && node.isCurrent,
       'is-hidden': !node.visible,
     }"
     tabindex="-1"
@@ -67,6 +67,7 @@ interface TreeContext {
   draggable?: boolean
   expandOnClickNode?: boolean
   iconClass?: string
+  highlightCurrent?: boolean
   indent: number
   isTree?: boolean
   nodeKey?: string

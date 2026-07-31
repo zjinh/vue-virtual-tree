@@ -38,11 +38,11 @@ export const TREE_PROPS: PropManifestItem[] = [
   { name: 'showCheckbox', type: 'boolean', defaultValue: 'false', support: 'supported', control: 'boolean' },
   { name: 'props', type: 'TreeOptionProps', defaultValue: 'label / children / disabled', support: 'supported', control: 'fixed', initializationOnly: true, note: 'Mapped to label, children, disabled and leaf.' },
   { name: 'lazy', type: 'boolean', defaultValue: 'false', support: 'supported', control: 'boolean', initializationOnly: true },
-  { name: 'highlightCurrent', type: 'boolean', defaultValue: 'false', support: 'supported', control: 'boolean', note: 'Accepted by the component; current styling follows legacy behavior.' },
+  { name: 'highlightCurrent', type: 'boolean', defaultValue: 'false', support: 'supported', control: 'boolean', note: 'Gates current-node styling while current state remains available.' },
   { name: 'load', type: 'LoadFunction', defaultValue: 'not set', support: 'supported', control: 'scenario', initializationOnly: true, note: 'Enabled by the lazy scenario.' },
   { name: 'filterNodeMethod', type: 'FilterFunction', defaultValue: 'not set', support: 'supported', control: 'scenario', note: 'Connected to the filter input.' },
   { name: 'indent', type: 'number', defaultValue: '18', support: 'supported', control: 'number' },
-  { name: 'iconClass', type: 'string', defaultValue: 'not set', support: 'supported', control: 'text' },
+  { name: 'iconClass', type: 'string', defaultValue: 'not set', support: 'supported', control: 'text', note: 'Visible in built-in node content; try workbench-caret.' },
   { name: 'height', type: 'string | number', defaultValue: '100%', support: 'supported', control: 'number' },
   { name: 'renderContent', type: 'never', defaultValue: 'not set', support: 'unsupported', control: 'fixed', note: 'Deprecated compatibility placeholder. Use the default scoped slot.' },
 ]

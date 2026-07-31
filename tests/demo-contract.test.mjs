@@ -47,3 +47,15 @@ test('exposes demo development and release gates after the root build', () => {
     assert.ok(script.indexOf('pnpm run build') < script.indexOf('pnpm run test:demos'))
   }
 })
+
+test('offers real built-in and scoped-slot node paths with completion metrics', async () => {
+  const app = await readFile(new URL('examples/shared/App.vue', root), 'utf8')
+
+  assert.match(app, /v-if="customSlotEnabled"/)
+  assert.match(app, /v-else/)
+  assert.match(app, /class="custom-node-content"/)
+  assert.match(app, /class="default-node-content"/)
+  assert.match(app, /selectChange/)
+  assert.match(app, /scrollToItem completion/)
+  assert.match(app, /countLogicalTreeNodes/)
+})
