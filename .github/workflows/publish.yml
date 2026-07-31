@@ -1,0 +1,38 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.22.3
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+      - name: Set up pnpm and npm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.4 --activate
+          npm install --global npm@11.5.1
+          npm --version
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify release package
+        run: pnpm run publish:check
+      - name: Publish verified tarball
+        run: npm publish .release/package.tgz --ignore-scripts --access public
