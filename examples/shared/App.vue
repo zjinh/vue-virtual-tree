@@ -404,6 +404,8 @@ interface MethodGroup {
   methods: MethodManifestItem[]
 }
 
+type BusyOwner = number
+
 interface NumberOptionRule {
   fallback: number
   max: number
@@ -554,6 +556,8 @@ export default defineComponent({
       mutationSequence: 0,
       busy: false,
       busyLabel: '',
+      busyOwner: null as BusyOwner | null,
+      busySequence: 0,
       benchmarks: [] as BenchmarkEntry[],
       benchmarkSequence: 0,
       frameSummary: { frameCount: 0, p95Ms: null, longFrames: 0 } as FrameSummary,
@@ -760,9 +764,9 @@ export default defineComponent({
     },
     async loadDataset(total: number): Promise<void> {
       if (this.busy) return
-      this.setBusy(`Generating ${this.formatNumber(total)} nodes`)
-      const generation = this.beginTreeGeneration()
+      const busyOwner = this.beginBusy(`Generating ${this.formatNumber(total)} nodes`)
       try {
+        const generation = this.beginTreeGeneration()
         const generationStart = performance.now()
         const data = generateTreeData(total)
         const generationDuration = performance.now() - generationStart
@@ -784,7 +788,7 @@ export default defineComponent({
       } catch (error) {
         this.recordMethodResult('loadDataset', performance.now(), undefined, error)
       } finally {
-        this.clearBusy()
+        this.endBusy(busyOwner)
       }
     },
     filterNode(value: unknown, data: DemoTreeNode): boolean {
@@ -853,9 +857,11 @@ export default defineComponent({
         return
       }
       if (this.busy) return
-      if (this.totalNodes >= 50_000) this.setBusy(`Running ${name} on ${this.formatCompact(this.totalNodes)} nodes`)
-      const generation = this.workGeneration
+      const busyOwner = this.totalNodes >= 50_000
+        ? this.beginBusy(`Running ${name} on ${this.formatCompact(this.totalNodes)} nodes`)
+        : null
       try {
+        const generation = this.workGeneration
         const result = await action.run(this.getActionContext())
         if (name === 'scrollToItem') {
           await this.$nextTick()
@@ -870,7 +876,7 @@ export default defineComponent({
       } catch (error) {
         this.recordMethodResult(name, startedAt, undefined, error)
       } finally {
-        this.clearBusy()
+        this.endBusy(busyOwner)
       }
     },
     async measureTreeMethod(name: string): Promise<void> {
@@ -941,37 +947,46 @@ export default defineComponent({
       const maxScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
       if (maxScrollTop <= 0) return
 
-      this.setBusy('Sampling one virtual-list scroll')
-      const generation = this.workGeneration
-      const frames: number[] = []
-      const sampleStart = performance.now()
-      let previous = sampleStart
-      while (generation === this.workGeneration) {
-        const now = await this.waitForNextFrame(generation)
-        if (now === null) return
-        frames.push(now - previous)
-        previous = now
-        const progress = Math.min(1, (now - sampleStart) / 700)
-        scroller.scrollTop = startScrollTop + (maxScrollTop - startScrollTop) * progress
-        scroller.dispatchEvent(new Event('scroll'))
-        if (progress >= 1) break
-      }
-      if (generation !== this.workGeneration) return
+      const busyOwner = this.beginBusy('Sampling one virtual-list scroll')
+      try {
+        const generation = this.workGeneration
+        const frames: number[] = []
+        const sampleStart = performance.now()
+        let previous = sampleStart
+        while (generation === this.workGeneration) {
+          const now = await this.waitForNextFrame(generation)
+          if (now === null) return
+          frames.push(now - previous)
+          previous = now
+          const progress = Math.min(1, (now - sampleStart) / 700)
+          scroller.scrollTop = startScrollTop + (maxScrollTop - startScrollTop) * progress
+          scroller.dispatchEvent(new Event('scroll'))
+          if (progress >= 1) break
+        }
+        if (generation !== this.workGeneration) return
 
-      this.frameSummary = summarizeFrameSample(frames)
-      this.addBenchmark(
-        'scroll frame sample',
-        performance.now() - sampleStart,
-        `${frames.length} frames; ${this.frameSummary.longFrames} over 50 ms`,
-      )
-      await this.refreshObservedMetrics(generation)
-      this.clearBusy()
+        this.frameSummary = summarizeFrameSample(frames)
+        this.addBenchmark(
+          'scroll frame sample',
+          performance.now() - sampleStart,
+          `${frames.length} frames; ${this.frameSummary.longFrames} over 50 ms`,
+        )
+        await this.refreshObservedMetrics(generation)
+      } finally {
+        this.endBusy(busyOwner)
+      }
     },
-    setBusy(label: string): void {
+    beginBusy(label: string): BusyOwner {
+      this.busySequence += 1
+      const owner = this.busySequence
+      this.busyOwner = owner
       this.busy = true
       this.busyLabel = label
+      return owner
     },
-    clearBusy(): void {
+    endBusy(owner: BusyOwner | null): void {
+      if (owner === null || this.busyOwner !== owner) return
+      this.busyOwner = null
       this.busy = false
       this.busyLabel = ''
     },

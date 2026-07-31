@@ -87,7 +87,18 @@ interface DemoAppMethodRegistry {
     resolve: (children: DemoTreeNode[]) => void,
   ): void
   beginTreeGeneration(this: DemoAsyncContext): number
+  beginBusy(this: {
+    busy: boolean
+    busyLabel: string
+    busyOwner: number | null
+    busySequence: number
+  }, label: string): number
   cleanupAsyncWork(this: DemoAsyncContext): void
+  endBusy(this: {
+    busy: boolean
+    busyLabel: string
+    busyOwner: number | null
+  }, owner: number | null): void
   setDraftBoolean(
     this: {
       appliedOptions: Record<string, string | number | boolean>
@@ -99,13 +110,13 @@ interface DemoAppMethodRegistry {
   serializeValue(this: object, value: unknown): string
   sampleScrollFrames(this: {
     addBenchmark(name: string, durationMs: number, detail: string): void
+    beginBusy(label: string): number
     benchmarks: unknown[]
     busy: boolean
-    clearBusy(): void
+    endBusy(owner: number | null): void
     frameSummary: { frameCount: number; p95Ms: number | null; longFrames: number }
     recordMethodResult(name: string, startedAt: number, value?: unknown, error?: unknown): void
     refreshObservedMetrics(): Promise<void>
-    setBusy(label: string): void
   }): Promise<void>
   waitForDelay(this: DemoAsyncContext, delayMs: number, generation?: number): Promise<boolean>
   waitForNextFrame(this: DemoAsyncContext, generation?: number): Promise<number | null>
@@ -115,8 +126,11 @@ interface DemoAppPublicInstance {
   appliedOptions: Record<string, string | number | boolean>
   applyAndRemount(): void
   benchmarks: unknown[]
+  busy: boolean
+  busyLabel: string
   draftOptions: Record<string, string | number | boolean>
   eventLog: Array<{ name: string }>
+  loadDataset(total: number): Promise<void>
   resetScenario(): void
   runNamedMethod(name: string): Promise<void>
   targetKey: string
@@ -545,6 +559,28 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
+  test('keeps a newer dataset load busy when it cancels an older method wait', async () => {
+    const result = await mountDemoApp()
+    vi.useFakeTimers()
+
+    const staleMethodRun = result.instance.runNamedMethod('scrollToItem')
+    await settle()
+    expect(result.instance.busy).toBe(false)
+
+    const datasetLoad = result.instance.loadDataset(100_000)
+    expect(result.instance.busy).toBe(true)
+    expect(result.instance.busyLabel).toBe('Generating 100,000 nodes')
+
+    await staleMethodRun
+    expect(result.instance.busy).toBe(true)
+    expect(result.instance.busyLabel).toBe('Generating 100,000 nodes')
+
+    await vi.runAllTimersAsync()
+    await datasetLoad
+    expect(result.instance.busy).toBe(false)
+    expect(result.instance.busyLabel).toBe('')
+  })
+
   test('does not start or report a frame sample without scroll distance', () => {
     const scroller = document.createElement('div')
     scroller.className = 'virtual-tree'
@@ -555,18 +591,18 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
     document.body.appendChild(frame)
     const context = {
       addBenchmark: vi.fn(),
+      beginBusy: vi.fn(() => 1),
       benchmarks: [] as unknown[],
       busy: false,
-      clearBusy: vi.fn(),
+      endBusy: vi.fn(),
       frameSummary: { frameCount: 0, p95Ms: null, longFrames: 0 },
       recordMethodResult: vi.fn(),
       refreshObservedMetrics: vi.fn(async () => {}),
-      setBusy: vi.fn(),
     }
 
     void demoAppMethods.sampleScrollFrames.call(context)
 
-    expect(context.setBusy).not.toHaveBeenCalled()
+    expect(context.beginBusy).not.toHaveBeenCalled()
     expect(context.addBenchmark).not.toHaveBeenCalled()
   })
 
