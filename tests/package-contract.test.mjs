@@ -126,6 +126,7 @@ test('keeps the tree model exclusively in TypeScript and inside package typechec
   assert.equal(tsconfig.compilerOptions.strict, true)
   assert.equal(tsconfig.compilerOptions.allowJs, false)
   assert.ok(tsconfig.include.includes('src/**/*.ts'))
+  assert.ok(tsconfig.include.includes('tests/model/**/*.ts'))
   assert.ok(!tsconfig.include.includes('src/**/*.js'))
 })
 

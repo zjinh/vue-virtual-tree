@@ -25,12 +25,12 @@ export type TreePropertyGetter<
 export type TreeProperty<
   T extends TreeNodeData,
   Value = unknown,
-> = TreeDataKey<T> | TreePropertyGetter<T, Value>
+> = KeysMatching<T, Value> | TreePropertyGetter<T, Value>
 export type TreeOptionProps<T extends TreeNodeData = TreeNodeData> = {
   children?: TreeChildrenKey<T>
   label?: TreeProperty<T>
-  disabled?: TreeBooleanKey<T> | TreePropertyGetter<T>
-  isLeaf?: TreeBooleanKey<T> | TreePropertyGetter<T, boolean>
+  disabled?: TreeProperty<T>
+  isLeaf?: TreeProperty<T, boolean>
 } & Partial<Record<string, TreeProperty<T>>>
 
 export type LoadResolve<T extends TreeNodeData> = (data: T[]) => void

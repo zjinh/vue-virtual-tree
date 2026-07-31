@@ -12,5 +12,5 @@
     "noEmit": true,
     "isolatedModules": true
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "tsdown.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "tests/model/**/*.ts", "tsdown.config.ts"]
 }

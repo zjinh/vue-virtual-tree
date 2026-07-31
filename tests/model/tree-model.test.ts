@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import TreeStore from '../../src/model/tree-store'
 import type Node from '../../src/model/node'
+import type { TreeKey } from '../../src/model/util'
 
 interface Item {
   id: number
@@ -50,7 +51,7 @@ describe('tree construction', () => {
     expect(Object.keys(store.nodesMap).sort()).toEqual(['1', '11', '12', '2'])
     expect(leaf.parent).toBe(node(store, 1))
     expect(leaf.parent?.parent).toBe(store.root)
-    expect(store.root.contains(leaf)).toBe(true)
+    expect(store.root!.contains(leaf)).toBe(true)
     expect(leaf.nextSibling).toBe(node(store, 12))
     expect(node(store, 12).previousSibling).toBe(leaf)
   })
@@ -193,7 +194,7 @@ describe('visibility and current node', () => {
     })
 
     store.filter('Missing')
-    expect(store.root.visible).toBe(false)
+    expect(store.root!.visible).toBe(false)
 
     store.filter('Alpha')
 
@@ -202,8 +203,8 @@ describe('visibility and current node', () => {
     expect(node(store, 1).visible).toBe(true)
     expect(node(store, 2).visible).toBe(false)
     expect(node(store, 1).expanded).toBe(true)
-    expect(store.root.visible).toBe(true)
-    expect(store.root.expanded).toBe(false)
+    expect(store.root!.visible).toBe(true)
+    expect(store.root!.expanded).toBe(false)
   })
 
   it('sets current nodes by key and data, and clears stale current state', () => {
@@ -268,7 +269,7 @@ describe('tree mutations', () => {
 
 describe('lazy loading', () => {
   it('creates root and descendant nodes from each load resolve callback', () => {
-    const calls: Array<number | null | undefined> = []
+    const calls: Array<TreeKey | null | undefined> = []
     const store = new TreeStore<Item>({
       data: [],
       key: 'id',

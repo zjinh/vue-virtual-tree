@@ -16,6 +16,7 @@ import SourceVueVirtualTree, {
   type TreeNode as SourceTreeNode,
   type TreeNodeData as SourceTreeNodeData,
   type TreeOptionProps as SourceTreeOptionProps,
+  type TreeProperty as SourceTreeProperty,
   type VueVirtualTreePlugin as SourceVueVirtualTreePlugin,
   type VueVirtualTreeRegistrar as SourceVueVirtualTreeRegistrar,
 } from '../../../src/index'
@@ -29,6 +30,7 @@ import {
   type TreeNode,
   type TreeNodeData,
   type TreeOptionProps,
+  type TreeProperty,
 } from '@zjinh/vue-virtual-tree'
 
 type Equal<Left, Right> =
@@ -58,7 +60,8 @@ interface ConsumerTreeNode {
   id: TreeKey
   name: string
   children?: ConsumerTreeNode[]
-  disabled?: boolean
+  disabled?: boolean | number | string
+  leaf?: boolean
 }
 
 type PlainNodeMatchesDistBase = Assert<
@@ -72,6 +75,7 @@ const props: TreeOptionProps<ConsumerTreeNode> = {
   children: 'children',
   label: (data) => data.name,
   disabled: 'disabled',
+  isLeaf: 'leaf',
 }
 const load: LoadFunction<ConsumerTreeNode> = (_node, resolve) => resolve([])
 const filter: FilterFunction<ConsumerTreeNode, string> = (value, data) =>
@@ -122,14 +126,6 @@ const invalidSourceChildrenProps: SourceTreeOptionProps<ConsumerTreeNode> = {
   // @ts-expect-error string fields cannot be used as children mappings
   children: 'name',
 }
-const invalidDistDisabledProps: TreeOptionProps<ConsumerTreeNode> = {
-  // @ts-expect-error string fields cannot be used as disabled mappings
-  disabled: 'name',
-}
-const invalidSourceDisabledProps: SourceTreeOptionProps<ConsumerTreeNode> = {
-  // @ts-expect-error string fields cannot be used as disabled mappings
-  disabled: 'name',
-}
 const invalidDistLeafProps: TreeOptionProps<ConsumerTreeNode> = {
   // @ts-expect-error string fields cannot be used as isLeaf mappings
   isLeaf: 'name',
@@ -138,6 +134,10 @@ const invalidSourceLeafProps: SourceTreeOptionProps<ConsumerTreeNode> = {
   // @ts-expect-error string fields cannot be used as isLeaf mappings
   isLeaf: 'name',
 }
+// @ts-expect-error boolean properties cannot map to string fields
+const invalidDistBooleanProperty: TreeProperty<ConsumerTreeNode, boolean> = 'name'
+// @ts-expect-error boolean properties cannot map to string fields
+const invalidSourceBooleanProperty: SourceTreeProperty<ConsumerTreeNode, boolean> = 'name'
 const sourceNode: SourceTreeNode<ConsumerTreeNode> | null = sourceStore.getNode(1)
 const childOptions: NodeChildOptions<ConsumerTreeNode> = {
   data: { id: 2, name: 'child' },
@@ -161,10 +161,10 @@ void sourceLoad
 void sourceFilter
 void invalidDistChildrenProps
 void invalidSourceChildrenProps
-void invalidDistDisabledProps
-void invalidSourceDisabledProps
 void invalidDistLeafProps
 void invalidSourceLeafProps
+void invalidDistBooleanProperty
+void invalidSourceBooleanProperty
 
 const plugin: VueVirtualTreePlugin = VueVirtualTree
 const namedPlugin: typeof VueVirtualTree = NamedVueVirtualTree
