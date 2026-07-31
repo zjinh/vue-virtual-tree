@@ -49,7 +49,7 @@
     "url": "git+https://github.com/zjinh/vue-virtual-tree.git"
   },
   "scripts": {
-    "build": "tsdown && tsc -p tsconfig.declarations.json && node scripts/finalize-build.mjs",
+    "build": "node scripts/clean-build.mjs && tsdown && tsc -p tsconfig.declarations.json && node scripts/finalize-build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "pnpm run test:package && pnpm run typecheck && pnpm run build && pnpm run test:artifacts && pnpm run test:types",
     "test:package": "node --test tests/package-contract.test.mjs",

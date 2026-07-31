@@ -7,6 +7,7 @@ import {
   copyFile,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rm,
 } from 'node:fs/promises'
@@ -20,6 +21,36 @@ const root = new URL('../', import.meta.url)
 async function readDist(path) {
   return readFile(new URL(`dist/${path}`, root), 'utf8')
 }
+
+async function listFiles(directory, prefix = '') {
+  const entries = await readdir(directory, { withFileTypes: true })
+  const files = []
+
+  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name
+    if (entry.isDirectory()) {
+      files.push(...await listFiles(join(directory, entry.name), relativePath))
+    } else {
+      files.push(relativePath)
+    }
+  }
+
+  return files
+}
+
+test('emits only the allowlisted package artifacts', async () => {
+  assert.deepEqual(
+    await listFiles(fileURLToPath(new URL('../dist/', import.meta.url))),
+    [
+      'index.d.ts',
+      'style.css',
+      'vue2/index.js',
+      'vue2/style.css',
+      'vue3/index.js',
+      'vue3/style.css',
+    ],
+  )
+})
 
 test('emits Vue 2 and Vue 3 ESM entry points', async () => {
   const [vue2, vue3] = await Promise.all([
@@ -48,7 +79,8 @@ test('emits one public stylesheet covering both scoped builds', async () => {
 
 test('consecutive builds emit byte-identical artifacts', async () => {
   const run = promisify(execFile)
-  const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+  const pnpmCli = process.env.npm_execpath
+  assert.ok(pnpmCli, 'npm_execpath must point to the pnpm JavaScript CLI')
   const paths = [
     'index.d.ts',
     'style.css',
@@ -61,9 +93,9 @@ test('consecutive builds emit byte-identical artifacts', async () => {
     paths.map(async (path) => createHash('sha256').update(await readDist(path)).digest('hex')),
   )
 
-  await run(command, ['run', 'build'], { cwd: fileURLToPath(root) })
+  await run(process.execPath, [pnpmCli, 'run', 'build'], { cwd: fileURLToPath(root) })
   const firstBuild = await snapshot()
-  await run(command, ['run', 'build'], { cwd: fileURLToPath(root) })
+  await run(process.execPath, [pnpmCli, 'run', 'build'], { cwd: fileURLToPath(root) })
 
   assert.deepEqual(await snapshot(), firstBuild)
 })

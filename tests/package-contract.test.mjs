@@ -76,7 +76,7 @@ test('declares the consumer and publication boundaries', () => {
 })
 
 test('defines package and release gates around tsdown', () => {
-  assert.match(packageJson.scripts.build, /^tsdown && /)
+  assert.match(packageJson.scripts.build, /^node scripts\/clean-build\.mjs && tsdown && /)
   assert.match(packageJson.scripts.build, /tsc -p tsconfig\.declarations\.json/)
   assert.match(packageJson.scripts.build, /node scripts\/finalize-build\.mjs$/)
   assert.equal(packageJson.scripts.typecheck, 'tsc --noEmit')
@@ -106,6 +106,22 @@ test('defines package and release gates around tsdown', () => {
     'test:types',
     'publint',
   ])
+})
+
+test('cleans the exact repository dist directory before building', async () => {
+  const cleaner = await readFile(new URL('scripts/clean-build.mjs', root), 'utf8')
+  assert.match(cleaner, /new URL\('\.\.\/dist\/', import\.meta\.url\)/)
+  assert.match(cleaner, /rm\(distUrl, \{ force: true, recursive: true \}\)/)
+})
+
+test('runs nested builds through Node and the pnpm JavaScript CLI', async () => {
+  const artifactContract = await readFile(
+    new URL('tests/artifact-contract.test.mjs', root),
+    'utf8',
+  )
+  assert.doesNotMatch(artifactContract, /pnpm\.cmd/)
+  assert.match(artifactContract, /process\.execPath/)
+  assert.match(artifactContract, /process\.env\.npm_execpath/)
 })
 
 test('finalizes public artifacts without module-level build coordination', async () => {
