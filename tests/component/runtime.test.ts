@@ -27,6 +27,7 @@ interface RuntimeTreeInstance extends VueVirtualTreeInstance<Item> {
 
 interface MountOptions {
   data?: Item[]
+  height?: string | number
   highlightCurrent?: boolean
   useSlot?: boolean
 }
@@ -204,7 +205,7 @@ const mountTree = async (options: MountOptions = {}): Promise<MountResult> => {
     data: options.data ?? createTreeData(),
     defaultExpandAll: true,
     filterNodeMethod: (value: string, data: Item) => data.label.includes(value),
-    height: '260px',
+    height: options.height ?? '260px',
     highlightCurrent: options.highlightCurrent ?? false,
     itemSize: 26,
     nodeKey: 'id',
@@ -689,6 +690,13 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
         element.textContent,
       ),
     ).toEqual(['slot:Root', 'slot:Child'])
+  })
+
+  test('normalizes a numeric tree height to CSS pixels', async () => {
+    const result = await mountTree({ height: 260 })
+    const scroller = result.host.querySelector<HTMLElement>('.virtual-tree')
+
+    expect(scroller?.style.height).toBe('260px')
   })
 
   test('emits node click, current change, and check event paths', async () => {

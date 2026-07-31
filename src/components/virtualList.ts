@@ -169,7 +169,9 @@ export default defineComponent({
       const endIndex = end.value + Math.max(1, belowCount.value)
       return indexedListData.value.slice(startIndex, endIndex)
     })
-    const listHeight = computed(() => ({ height: props.height }))
+    const listHeight = computed(() => ({
+      height: typeof props.height === 'number' ? `${props.height}px` : props.height,
+    }))
 
     const updatePhantomStyle = (height: string): void => {
       if (phantom.value) phantom.value.style.height = height
