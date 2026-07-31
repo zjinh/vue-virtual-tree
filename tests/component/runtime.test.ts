@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import * as VueRuntime from 'vue'
 
 import DemoApp from '../../examples/shared/App.vue'
+import { countTreeNodes } from '../../examples/shared/data'
 import type { DemoTreeNode } from '../../examples/shared/data'
 import VirtualList from '../../src/components/virtualList'
 import TreeComponent from '../../src/index.vue'
@@ -57,6 +58,16 @@ interface MountedResource {
   unmount(): void
 }
 
+interface DemoAsyncContext {
+  beginTreeGeneration(): number
+  cleanupAsyncWork(): void
+  pendingAnimationFrames: Map<number, (timestamp: number | null) => void>
+  pendingTimeouts: Map<number, () => void>
+  waitForDelay(delayMs: number, generation?: number): Promise<boolean>
+  waitForNextFrame(generation?: number): Promise<number | null>
+  workGeneration: number
+}
+
 interface DemoAppMethodRegistry {
   applyAndRemount(this: {
     appliedOptions: Record<string, string | number | boolean>
@@ -75,6 +86,8 @@ interface DemoAppMethodRegistry {
     node: { data: DemoTreeNode | DemoTreeNode[]; level: number },
     resolve: (children: DemoTreeNode[]) => void,
   ): void
+  beginTreeGeneration(this: DemoAsyncContext): number
+  cleanupAsyncWork(this: DemoAsyncContext): void
   setDraftBoolean(
     this: {
       appliedOptions: Record<string, string | number | boolean>
@@ -83,6 +96,36 @@ interface DemoAppMethodRegistry {
     name: string,
     event: Event,
   ): void
+  serializeValue(this: object, value: unknown): string
+  sampleScrollFrames(this: {
+    addBenchmark(name: string, durationMs: number, detail: string): void
+    benchmarks: unknown[]
+    busy: boolean
+    clearBusy(): void
+    frameSummary: { frameCount: number; p95Ms: number | null; longFrames: number }
+    recordMethodResult(name: string, startedAt: number, value?: unknown, error?: unknown): void
+    refreshObservedMetrics(): Promise<void>
+    setBusy(label: string): void
+  }): Promise<void>
+  waitForDelay(this: DemoAsyncContext, delayMs: number, generation?: number): Promise<boolean>
+  waitForNextFrame(this: DemoAsyncContext, generation?: number): Promise<number | null>
+}
+
+interface DemoAppPublicInstance {
+  appliedOptions: Record<string, string | number | boolean>
+  applyAndRemount(): void
+  benchmarks: unknown[]
+  draftOptions: Record<string, string | number | boolean>
+  eventLog: Array<{ name: string }>
+  resetScenario(): void
+  runNamedMethod(name: string): Promise<void>
+  targetKey: string
+  totalNodes: number
+  treeData: DemoTreeNode[]
+}
+
+interface DemoAppMountResult extends MountedResource {
+  instance: DemoAppPublicInstance
 }
 
 interface Vue2Constructor {
@@ -95,12 +138,28 @@ interface Vue2Constructor {
 }
 
 interface Vue3Application {
+  component(name: string, component: unknown): Vue3Application
   mount(element: Element): unknown
   unmount(): void
 }
 
 const mounted: MountedResource[] = []
 const demoAppMethods = (DemoApp as unknown as { methods: DemoAppMethodRegistry }).methods
+
+const createDemoAsyncContext = (): DemoAsyncContext => {
+  const context: DemoAsyncContext = {
+    beginTreeGeneration: () => demoAppMethods.beginTreeGeneration.call(context),
+    cleanupAsyncWork: () => demoAppMethods.cleanupAsyncWork.call(context),
+    pendingAnimationFrames: new Map(),
+    pendingTimeouts: new Map(),
+    waitForDelay: (delayMs, generation) =>
+      demoAppMethods.waitForDelay.call(context, delayMs, generation),
+    waitForNextFrame: (generation) =>
+      demoAppMethods.waitForNextFrame.call(context, generation),
+    workGeneration: 0,
+  }
+  return context
+}
 
 const createTreeData = (): Item[] => [
   {
@@ -216,6 +275,55 @@ const mountTree = async (options: MountOptions = {}): Promise<MountResult> => {
   return result
 }
 
+const mountDemoApp = async (): Promise<DemoAppMountResult> => {
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+
+  let instance: DemoAppPublicInstance | undefined
+  let rawUnmount: () => void
+  if (__VUE_RUNTIME__ === 'vue2') {
+    const Vue2 = (
+      VueRuntime as unknown as { default: Vue2Constructor }
+    ).default
+    const appOptions = DemoApp as unknown as {
+      components?: Record<string, unknown>
+    }
+    appOptions.components = {
+      ...appOptions.components,
+      VueVirtualTree: TreeComponent,
+    }
+    const parent = new Vue2({
+      render(createElement: (...args: unknown[]) => unknown) {
+        return createElement(DemoApp, { ref: 'app' })
+      },
+    })
+    parent.$mount()
+    host.appendChild(parent.$el)
+    instance = parent.$refs.app as DemoAppPublicInstance
+    rawUnmount = () => parent.$destroy()
+  } else {
+    const runtime = VueRuntime as typeof VueRuntime & {
+      createApp(root: unknown): Vue3Application
+    }
+    const app = runtime.createApp(DemoApp)
+    app.component('VueVirtualTree', TreeComponent)
+    instance = app.mount(host) as DemoAppPublicInstance
+    rawUnmount = () => app.unmount()
+  }
+
+  let unmounted = false
+  const unmount = (): void => {
+    if (unmounted) return
+    unmounted = true
+    rawUnmount()
+  }
+  if (!instance) throw new Error('demo app instance was not mounted')
+  const result = { host, instance, unmount }
+  mounted.push(result)
+  await settle()
+  return result
+}
+
 const mountVirtualList = async (): Promise<VirtualListMountResult> => {
   const host = document.createElement('div')
   document.body.appendChild(host)
@@ -311,37 +419,194 @@ afterEach(() => {
 })
 
 describe(`${__VUE_RUNTIME__} component runtime`, () => {
-  test('loads the demo virtual root key before resolving one lazy level at a time', () => {
+  test('mounts the shared demo with accessible prop controls', async () => {
+    const result = await mountDemoApp()
+    const rows = Array.from(result.host.querySelectorAll<HTMLElement>('.prop-row'))
+
+    expect(rows).toHaveLength(22)
+    for (const row of rows) {
+      const name = row.querySelector('code')?.textContent
+      expect(name).toBeTruthy()
+      expect(row.id).toBe(`prop-row-${name}`)
+      expect(row.getAttribute('aria-labelledby')).toBe(`prop-label-${name}`)
+      expect(row.getAttribute('aria-describedby')).toBe(`prop-description-${name}`)
+      expect(result.host.querySelector(`#prop-label-${name}`)?.textContent).toContain(name)
+      expect(result.host.querySelector(`#prop-description-${name}`)?.textContent).toContain('default')
+
+      const control = row.querySelector<HTMLInputElement>('input')
+      if (control) {
+        expect(control.getAttribute('aria-labelledby')).toBe(`prop-label-${name}`)
+        expect(control.getAttribute('aria-describedby')).toBe(`prop-description-${name}`)
+      }
+    }
+  })
+
+  test('keeps scoped checkbox clicks out of node click and current change events', async () => {
+    const result = await mountDemoApp()
+    result.host.querySelector<HTMLButtonElement>('.content-mode-button')?.click()
+    await settle()
+    result.instance.eventLog = []
+
+    const checkbox = result.host.querySelector<HTMLInputElement>('.custom-node-content .node-checkbox')
+    expect(checkbox).not.toBeNull()
+    checkbox?.click()
+    await settle()
+
+    const names = result.instance.eventLog.map(({ name }) => name)
+    expect(names).toContain('check')
+    expect(names).not.toContain('node-click')
+    expect(names).not.toContain('current-change')
+  })
+
+  test('normalizes unsafe numeric options before remounting the shared demo', async () => {
+    const result = await mountDemoApp()
+    Object.assign(result.instance.draftOptions, {
+      height: Number.POSITIVE_INFINITY,
+      indent: -20,
+      itemSize: Number.NaN,
+    })
+
+    result.instance.applyAndRemount()
+    await settle()
+
+    expect(result.instance.appliedOptions).toMatchObject({
+      height: 420,
+      indent: 0,
+      itemSize: 28,
+    })
+
+    Object.assign(result.instance.draftOptions, {
+      height: 10_000,
+      indent: 1_000,
+      itemSize: 0,
+    })
+    result.instance.applyAndRemount()
+    await settle()
+
+    expect(result.instance.appliedOptions).toMatchObject({
+      height: 2_000,
+      indent: 100,
+      itemSize: 1,
+    })
+  })
+
+  test('keeps logical metrics equal to the external data after demo mutations', async () => {
+    const result = await mountDemoApp()
+    result.instance.targetKey = 'node-250'
+
+    await result.instance.runNamedMethod('append')
+    expect(result.instance.totalNodes).toBe(1_001)
+    expect(result.instance.totalNodes).toBe(countTreeNodes(result.instance.treeData))
+
+    result.instance.targetKey = 'mutation-1'
+    await result.instance.runNamedMethod('remove')
+    expect(result.instance.totalNodes).toBe(1_000)
+    expect(result.instance.totalNodes).toBe(countTreeNodes(result.instance.treeData))
+  })
+
+  test('summarizes a 100k result before serialization traverses the full array', () => {
+    let labelReads = 0
+    const largeResult = Array.from({ length: 100_000 }, (_, index) => ({
+      id: `node-${index}`,
+      get label() {
+        labelReads += 1
+        return `Node ${index}`
+      },
+    }))
+
+    const serialized = demoAppMethods.serializeValue.call({}, largeResult)
+    const summary = JSON.parse(serialized) as { sample: unknown[]; total: number }
+
+    expect(summary.total).toBe(100_000)
+    expect(summary.sample.length).toBeGreaterThan(0)
+    expect(summary.sample.length).toBeLessThanOrEqual(5)
+    expect(labelReads).toBeLessThanOrEqual(5)
+  })
+
+  test('cancels demo timers on remount and unmount', async () => {
+    const result = await mountDemoApp()
     vi.useFakeTimers()
+    result.instance.draftOptions.lazy = true
+    result.instance.applyAndRemount()
+    await settle()
+    expect(vi.getTimerCount()).toBeGreaterThan(0)
+
+    result.instance.resetScenario()
+    await settle()
+    await vi.runAllTimersAsync()
+    expect(result.instance.totalNodes).toBe(1_000)
+
+    result.instance.draftOptions.lazy = true
+    result.instance.applyAndRemount()
+    await settle()
+    expect(vi.getTimerCount()).toBeGreaterThan(0)
+    result.unmount()
+    result.host.remove()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  test('does not start or report a frame sample without scroll distance', () => {
+    const scroller = document.createElement('div')
+    scroller.className = 'virtual-tree'
+    scroller.style.height = '100px'
+    const frame = document.createElement('div')
+    frame.className = 'tree-frame'
+    frame.appendChild(scroller)
+    document.body.appendChild(frame)
     const context = {
+      addBenchmark: vi.fn(),
+      benchmarks: [] as unknown[],
+      busy: false,
+      clearBusy: vi.fn(),
+      frameSummary: { frameCount: 0, p95Ms: null, longFrames: 0 },
+      recordMethodResult: vi.fn(),
+      refreshObservedMetrics: vi.fn(async () => {}),
+      setBusy: vi.fn(),
+    }
+
+    void demoAppMethods.sampleScrollFrames.call(context)
+
+    expect(context.setBusy).not.toHaveBeenCalled()
+    expect(context.addBenchmark).not.toHaveBeenCalled()
+  })
+
+  test('loads the demo virtual root key before resolving one lazy level at a time', async () => {
+    vi.useFakeTimers()
+    const context = Object.assign(createDemoAsyncContext(), {
       $nextTick: () => new Promise<void>(() => {}),
       refreshObservedMetrics: vi.fn(async () => {}),
-    }
-    const resolveNode = (node: { data: DemoTreeNode | DemoTreeNode[]; level: number }) => {
+      totalNodes: 0,
+      treeData: [] as DemoTreeNode[],
+      waitForStablePaint: vi.fn(async () => false),
+    })
+    const resolveNode = async (node: { data: DemoTreeNode | DemoTreeNode[]; level: number }) => {
       let resolved: DemoTreeNode[] | undefined
       demoAppMethods.loadLazyNode.call(context, node, (children) => {
         resolved = children
       })
-      vi.advanceTimersByTime(180)
+      await vi.advanceTimersByTimeAsync(180)
       expect(resolved).toBeDefined()
       return resolved!
     }
 
-    const roots = resolveNode({ data: [], level: 0 })
+    const roots = await resolveNode({ data: [], level: 0 })
     expect(roots.map(({ id }) => id)).toEqual(['lazy-root'])
     expect(roots[0]?.children).toBeUndefined()
+    expect(context.totalNodes).toBe(1)
 
-    const levelTwo = resolveNode({ data: roots[0]!, level: 1 })
+    const levelTwo = await resolveNode({ data: roots[0]!, level: 1 })
     expect(levelTwo.map(({ id }) => id)).toEqual(
       Array.from({ length: 6 }, (_, index) => `lazy-root-${index + 1}`),
     )
     expect(levelTwo.every(({ leaf, children }) => leaf === false && children === undefined)).toBe(true)
+    expect(context.totalNodes).toBe(7)
 
-    const levelThree = resolveNode({ data: levelTwo[0]!, level: 2 })
+    const levelThree = await resolveNode({ data: levelTwo[0]!, level: 2 })
     expect(levelThree.map(({ id }) => id)).toEqual(
       Array.from({ length: 6 }, (_, index) => `lazy-root-1-${index + 1}`),
     )
     expect(levelThree.every(({ leaf }) => leaf === true)).toBe(true)
+    expect(context.totalNodes).toBe(13)
   })
 
   test('turns off default expansion only while the demo lazy mode is selected', () => {
@@ -361,15 +626,16 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
   })
 
   test('enforces collapsed defaults when applying the demo lazy scenario', () => {
-    const state = {
+    const state = Object.assign(createDemoAsyncContext(), {
       appliedOptions: {},
       draftOptions: { defaultExpandAll: true, lazy: true },
+      normalizeDraftNumbers: vi.fn(),
       refreshObservedMetrics: vi.fn(async () => {}),
       targetKey: '',
       totalNodes: 0,
       treeData: [] as DemoTreeNode[],
       treeVersion: 0,
-    }
+    })
 
     demoAppMethods.applyAndRemount.call(state)
 

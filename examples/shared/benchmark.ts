@@ -4,10 +4,6 @@ export interface FrameSummary {
   longFrames: number
 }
 
-export interface LogicalTreeNode {
-  childNodes?: LogicalTreeNode[]
-}
-
 export interface ScrollCompletionDependencies {
   nextTick(): Promise<void>
   wait?(delayMs: number): Promise<void>
@@ -43,18 +39,6 @@ export function calculateVirtualizationRatio(
   if (logicalNodes <= 0) return null
   const percentage = Math.round((1 - renderedNodes / logicalNodes) * 1_000) / 10
   return Math.max(0, Math.min(100, percentage))
-}
-
-export function countLogicalTreeNodes(root: LogicalTreeNode): number {
-  const queue = [...(root.childNodes ?? [])]
-  let count = 0
-  for (let index = 0; index < queue.length; index += 1) {
-    const node = queue[index]
-    if (!node) continue
-    count += 1
-    if (node.childNodes) queue.push(...node.childNodes)
-  }
-  return count
 }
 
 export function nextAnimationFrame(): Promise<number> {

@@ -39,6 +39,16 @@ Object.defineProperty(globalThis, 'ResizeObserver', {
   value: TestResizeObserver,
 })
 
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  value: (query: string) => ({
+    addEventListener() {},
+    matches: false,
+    media: query,
+    removeEventListener() {},
+  }),
+})
+
 Object.defineProperty(globalThis, 'triggerResizeObservers', {
   configurable: true,
   value(element?: Element) {

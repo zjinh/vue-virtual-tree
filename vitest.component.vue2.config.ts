@@ -10,6 +10,7 @@ const compiler = vue2Compiler as unknown as NonNullable<
 
 export default defineConfig({
   define: {
+    __DEMO_RUNTIME__: JSON.stringify('Vue 2.7'),
     __VUE_RUNTIME__: JSON.stringify('vue2'),
   },
   plugins: [vue2({ compiler })],

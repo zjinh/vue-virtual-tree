@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   calculateVirtualizationRatio,
-  countLogicalTreeNodes,
   percentile,
   summarizeFrameSample,
   waitForScrollToItemCompletion,
@@ -34,19 +33,6 @@ describe('benchmark summaries', () => {
     expect(calculateVirtualizationRatio(60, 10_000)).toBe(99.4)
     expect(calculateVirtualizationRatio(0, 0)).toBeNull()
     expect(calculateVirtualizationRatio(4, 2)).toBe(0)
-  })
-
-  it('counts current model nodes after runtime mutations', () => {
-    const root = {
-      childNodes: [
-        { childNodes: [] },
-        { childNodes: [{ childNodes: [] }] },
-      ],
-    }
-
-    expect(countLogicalTreeNodes(root)).toBe(3)
-    root.childNodes.pop()
-    expect(countLogicalTreeNodes(root)).toBe(1)
   })
 
   it('waits beyond the component 50ms positioning timer before reporting scroll completion', async () => {

@@ -1,11 +1,9 @@
+import type { VueVirtualTreeInstance } from '@zjinh/vue-virtual-tree'
+
 import type { DemoTreeNode } from './data'
 
-export interface DemoTreeApi {
-  [method: string]: (...args: any[]) => any
-}
-
 export interface MethodActionContext {
-  tree: DemoTreeApi
+  tree: VueVirtualTreeInstance<DemoTreeNode>
   targetKey: string
   targetNode: DemoTreeNode
   query: string
