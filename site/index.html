@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Interactive Vue 2 and Vue 3 demos for vue-virtual-tree.">
+    <title>vue-virtual-tree demos</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --background: #eef1f3;
+        --surface: #f8fafb;
+        --surface-raised: #e6ebee;
+        --text: #172026;
+        --muted: #53616a;
+        --line: #b9c3c9;
+        --accent: #08766b;
+        --accent-strong: #075e56;
+        --accent-text: #f4fffd;
+        --danger: #a42f2f;
+        --danger-surface: #fff0ef;
+        --radius: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #11171a;
+          --surface: #182024;
+          --surface-raised: #202a2f;
+          --text: #edf4f5;
+          --muted: #aebbc0;
+          --line: #3c4a50;
+          --accent: #57c9ba;
+          --accent-strong: #75d8cc;
+          --accent-text: #10201e;
+          --danger: #ffaaa5;
+          --danger-surface: #3a2021;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-width: 18rem;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        min-height: 100dvh;
+        background: var(--background);
+        color: var(--text);
+      }
+
+      button,
+      a {
+        font: inherit;
+      }
+
+      a {
+        color: var(--accent-strong);
+        text-underline-offset: 0.2em;
+      }
+
+      button:focus-visible,
+      a:focus-visible,
+      iframe:focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 3px;
+      }
+
+      .app-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: center;
+        min-height: 4.25rem;
+        padding: 0.75rem clamp(1rem, 3vw, 2.5rem);
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .brand {
+        min-width: 0;
+      }
+
+      .brand h1 {
+        overflow: hidden;
+        margin: 0;
+        font-size: clamp(1rem, 2.4vw, 1.25rem);
+        font-weight: 700;
+        letter-spacing: -0.035em;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .brand p {
+        margin: 0.2rem 0 0;
+        color: var(--muted);
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 0.8rem;
+      }
+
+      .runtime-tabs {
+        display: inline-grid;
+        grid-template-columns: repeat(2, minmax(4.75rem, 1fr));
+        gap: 0.25rem;
+        padding: 0.25rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface-raised);
+      }
+
+      .runtime-tab {
+        min-height: 2.5rem;
+        padding: 0.5rem 0.8rem;
+        border: 0;
+        border-radius: calc(var(--radius) - 3px);
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .runtime-tab[aria-selected="true"] {
+        background: var(--accent);
+        color: var(--accent-text);
+      }
+
+      .runtime-tab:active {
+        transform: translateY(1px);
+      }
+
+      main {
+        width: min(100%, 100rem);
+        margin: 0 auto;
+        padding: clamp(0.75rem, 2vw, 1.5rem);
+      }
+
+      .workspace {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      .workspace-bar {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 3rem;
+        padding: 0.6rem 0.85rem;
+        border-bottom: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .workspace-bar a {
+        flex: none;
+        font-weight: 700;
+      }
+
+      .frame-stage {
+        position: relative;
+        min-height: min(46rem, calc(100dvh - 10rem));
+        background: var(--surface-raised);
+      }
+
+      iframe {
+        display: block;
+        width: 100%;
+        height: min(46rem, calc(100dvh - 10rem));
+        min-height: 32rem;
+        border: 0;
+        background: var(--surface);
+      }
+
+      .load-state,
+      .error-state {
+        position: absolute;
+        inset: 1rem;
+        display: grid;
+        place-content: center;
+        padding: 1.5rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        text-align: center;
+      }
+
+      .load-state {
+        color: var(--muted);
+      }
+
+      .error-state {
+        border-color: var(--danger);
+        background: var(--danger-surface);
+        color: var(--danger);
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+
+      .error-state p {
+        max-width: 34rem;
+        margin: 0 0 0.8rem;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      .no-script {
+        max-width: 42rem;
+        margin: 2rem auto;
+        padding: 1.25rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      @media (max-width: 42rem) {
+        .app-header {
+          grid-template-columns: 1fr;
+        }
+
+        .runtime-tabs {
+          width: 100%;
+        }
+
+        .workspace-bar {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 0.35rem;
+        }
+
+        .frame-stage,
+        iframe {
+          height: calc(100dvh - 12.75rem);
+          min-height: 28rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .runtime-tab {
+          transition: background-color 140ms ease, color 140ms ease, transform 80ms ease;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <h1>vue-virtual-tree</h1>
+        <p>Run the same component API against an isolated Vue runtime.</p>
+      </div>
+      <div class="runtime-tabs" role="tablist" aria-label="Demo runtime">
+        <button
+          class="runtime-tab"
+          id="runtime-vue2"
+          type="button"
+          role="tab"
+          aria-controls="demo-panel"
+          aria-selected="false"
+          tabindex="-1"
+          data-runtime="vue2"
+        >Vue 2.7</button>
+        <button
+          class="runtime-tab"
+          id="runtime-vue3"
+          type="button"
+          role="tab"
+          aria-controls="demo-panel"
+          aria-selected="true"
+          tabindex="0"
+          data-runtime="vue3"
+        >Vue 3</button>
+      </div>
+    </header>
+
+    <main>
+      <section
+        class="workspace"
+        id="demo-panel"
+        role="tabpanel"
+        aria-labelledby="runtime-vue3"
+      >
+        <div class="workspace-bar">
+          <span data-current-runtime>Vue 3 demo</span>
+          <a data-demo-link href="/vue-virtual-tree/vue3/">Open demo directly</a>
+        </div>
+        <div class="frame-stage">
+          <div class="load-state" role="status" aria-live="polite" data-load-state>
+            Loading Vue 3 demo
+          </div>
+          <div class="error-state" role="alert" data-error-state hidden>
+            <p>The demo could not be loaded in this frame.</p>
+            <a href="/vue-virtual-tree/vue3/">Open Vue 3 demo directly</a>
+          </div>
+          <iframe
+            title="Vue 3 virtual tree demo"
+            src="about:blank"
+          >
+            Your browser cannot show embedded pages.
+            <a href="/vue-virtual-tree/vue3/">Open the Vue 3 demo directly.</a>
+          </iframe>
+        </div>
+      </section>
+    </main>
+
+    <noscript>
+      <div class="no-script">
+        JavaScript is disabled. Open the
+        <a href="/vue-virtual-tree/vue2/">Vue 2.7 demo</a>
+        or the
+        <a href="/vue-virtual-tree/vue3/">Vue 3 demo</a>
+        directly.
+      </div>
+    </noscript>
+
+    <script>
+      (() => {
+        const demos = {
+          vue2: { label: 'Vue 2.7', url: '/vue-virtual-tree/vue2/' },
+          vue3: { label: 'Vue 3', url: '/vue-virtual-tree/vue3/' },
+        }
+        const tabs = [...document.querySelectorAll('[data-runtime]')]
+        const panel = document.querySelector('#demo-panel')
+        const frame = panel.querySelector('iframe')
+        const currentRuntime = panel.querySelector('[data-current-runtime]')
+        const directLink = panel.querySelector('[data-demo-link]')
+        const loadState = panel.querySelector('[data-load-state]')
+        const errorState = panel.querySelector('[data-error-state]')
+        let selectedRuntime = 'vue3'
+
+        function selectRuntime(runtime) {
+          const demo = demos[runtime]
+          if (!demo) return
+
+          selectedRuntime = runtime
+          for (const tab of tabs) {
+            const selected = tab.dataset.runtime === runtime
+            tab.setAttribute('aria-selected', String(selected))
+            tab.setAttribute('tabindex', selected ? '0' : '-1')
+          }
+
+          const selectedTab = tabs.find((tab) => tab.dataset.runtime === runtime)
+          panel.setAttribute('aria-labelledby', selectedTab.id)
+          currentRuntime.textContent = `${demo.label} demo`
+          directLink.href = demo.url
+          frame.title = `${demo.label} virtual tree demo`
+          loadState.textContent = `Loading ${demo.label} demo`
+          loadState.hidden = false
+          errorState.hidden = true
+          errorState.querySelector('a').href = demo.url
+          errorState.querySelector('a').textContent = `Open ${demo.label} demo directly`
+          frame.src = demo.url
+          history.replaceState(null, '', `#${runtime}`)
+        }
+
+        for (const [index, tab] of tabs.entries()) {
+          tab.addEventListener('click', () => selectRuntime(tab.dataset.runtime))
+          tab.addEventListener('keydown', (event) => {
+            let nextIndex
+            if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length
+            if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length
+            if (event.key === 'Home') nextIndex = 0
+            if (event.key === 'End') nextIndex = tabs.length - 1
+            if (nextIndex === undefined) return
+
+            event.preventDefault()
+            const nextTab = tabs[nextIndex]
+            selectRuntime(nextTab.dataset.runtime)
+            nextTab.focus()
+          })
+        }
+
+        frame.addEventListener('load', () => {
+          loadState.hidden = true
+        })
+        frame.addEventListener('error', () => {
+          loadState.hidden = true
+          errorState.hidden = false
+        })
+
+        const requestedRuntime = location.hash.slice(1)
+        selectRuntime(demos[requestedRuntime] ? requestedRuntime : selectedRuntime)
+      })()
+    </script>
+  </body>
+</html>

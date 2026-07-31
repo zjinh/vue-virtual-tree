@@ -2,6 +2,7 @@ node_modules/
 .pnpm-store/
 dist/
 examples/*/dist/
+_site/
 coverage/
 *.log
 .DS_Store

@@ -1,8 +1,8 @@
 import vue2 from '@vitejs/plugin-vue2'
 import { defineConfig } from 'vite'
 
-export default defineConfig(({ command }) => ({
-  base: process.env.DEMO_BASE || (command === 'serve' ? '/' : '/vue-virtual-tree/vue2/'),
+export default defineConfig({
+  base: process.env.DEMO_BASE || '/',
   define: {
     __DEMO_RUNTIME__: JSON.stringify('Vue 2.7'),
   },
@@ -13,4 +13,4 @@ export default defineConfig(({ command }) => ({
   server: {
     port: 4172,
   },
-}))
+})

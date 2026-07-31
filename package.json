@@ -50,6 +50,7 @@
   },
   "scripts": {
     "build": "node scripts/clean-build.mjs && tsdown && tsc -p tsconfig.declarations.json && node scripts/finalize-build.mjs",
+    "build:pages": "node scripts/build-pages.mjs",
     "dev:vue2": "pnpm run build && pnpm --filter @zjinh/vue-virtual-tree-demo-vue2 run dev",
     "dev:vue3": "pnpm run build && pnpm --filter @zjinh/vue-virtual-tree-demo-vue3 run dev",
     "typecheck": "tsc --noEmit",
@@ -58,6 +59,7 @@
     "build:demos": "pnpm --filter @zjinh/vue-virtual-tree-demo-vue2 run build && pnpm --filter @zjinh/vue-virtual-tree-demo-vue3 run build",
     "test:demos:unit": "vitest run tests/demo/api-manifest.test.ts tests/demo/benchmark.test.ts tests/demo/data.test.ts",
     "test:demos": "pnpm run build && pnpm run test:demos:unit && pnpm run typecheck:demos && pnpm run build:demos",
+    "test:pages": "pnpm run build:pages && node --test tests/pages-contract.test.mjs",
     "test": "pnpm run test:package && pnpm run test:model && pnpm run test:components && pnpm run typecheck && pnpm run typecheck:sfc && pnpm run build && pnpm run test:artifacts && pnpm run test:types && pnpm run test:demos",
     "test:package": "node --test tests/package-contract.test.mjs tests/demo-contract.test.mjs",
     "test:model": "vitest run tests/model",
