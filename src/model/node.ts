@@ -99,14 +99,15 @@ const getPropertyFromData = <T extends TreeNodeData>(
 ): unknown => {
   const props = node.store.props || {}
   const data = node.data
+  const dataRecord = data as Record<string, unknown>
   const config = props[prop] as TreeProperty<T> | undefined
 
   if (typeof config === "function") {
     return config(data, node)
   } else if (typeof config === "string") {
-    return data[config]
+    return dataRecord[config]
   } else if (typeof config === "undefined") {
-    const dataProp = data[prop]
+    const dataProp = dataRecord[prop]
     return dataProp === undefined ? "" : dataProp
   }
 }
@@ -185,7 +186,7 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
       nodeKey !== undefined &&
       defaultExpandedKeys.indexOf(nodeKey) !== -1
     ) {
-      this.expand(null, store.autoExpandParent === true);
+      this.expand(null, Boolean(store.autoExpandParent));
     }
 
     if (
@@ -242,8 +243,8 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
   //     return null;
   // }
 
-  get disabled(): boolean {
-    return getPropertyFromData(this, "disabled") === true
+  get disabled(): unknown {
+    return getPropertyFromData(this, "disabled")
   }
 
   get nextSibling(): Node<T> | null | undefined {
@@ -596,14 +597,14 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
     // 性能优化：使用Map来提高查找效率
     const oldDataMap = new Map<number, { data: T; index: number }>();
     oldData.forEach((data, index) => {
-      const internalKey = data[NODE_KEY] as number | undefined
+      const internalKey = (data as Record<string, unknown>)[NODE_KEY] as number | undefined
       if (internalKey) {
         oldDataMap.set(internalKey, { data, index });
       }
     });
 
     newData.forEach((item, index) => {
-      const key = item[NODE_KEY] as number | undefined;
+      const key = (item as Record<string, unknown>)[NODE_KEY] as number | undefined;
       if (key && oldDataMap.has(key)) {
         newDataMap[key] = { index, data: item };
       } else {
@@ -615,7 +616,7 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
       // 性能优化：批量移除不存在的节点
       const nodesToRemove: T[] = [];
       oldData.forEach((item) => {
-        const internalKey = item[NODE_KEY] as number | undefined
+        const internalKey = (item as Record<string, unknown>)[NODE_KEY] as number | undefined
         if (internalKey && !newDataMap[internalKey]) {
           nodesToRemove.push(item);
         }

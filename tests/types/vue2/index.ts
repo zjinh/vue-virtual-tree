@@ -11,6 +11,7 @@ import SourceVueVirtualTree, {
   VueVirtualTree as SourceNamedVueVirtualTree,
   type FilterFunction as SourceFilterFunction,
   type LoadFunction as SourceLoadFunction,
+  type NodeChildOptions as SourceNodeChildOptions,
   type TreeKey as SourceTreeKey,
   type TreeNode as SourceTreeNode,
   type TreeNodeData as SourceTreeNodeData,
@@ -23,6 +24,7 @@ import {
   TreeStore,
   type FilterFunction,
   type LoadFunction,
+  type NodeChildOptions,
   type TreeKey,
   type TreeNode,
   type TreeNodeData,
@@ -52,12 +54,19 @@ type SourceNamedMatchesDefault = Assert<
   Equal<typeof SourceNamedVueVirtualTree, typeof SourceVueVirtualTree>
 >
 
-interface ConsumerTreeNode extends TreeNodeData {
+interface ConsumerTreeNode {
   id: TreeKey
   name: string
   children?: ConsumerTreeNode[]
   disabled?: boolean
 }
+
+type PlainNodeMatchesDistBase = Assert<
+  ConsumerTreeNode extends TreeNodeData ? true : false
+>
+type PlainNodeMatchesSourceBase = Assert<
+  ConsumerTreeNode extends SourceTreeNodeData ? true : false
+>
 
 const props: TreeOptionProps<ConsumerTreeNode> = {
   children: 'children',
@@ -73,10 +82,29 @@ const modelStore = new TreeStore<ConsumerTreeNode>({
   props,
   load,
   filterNodeMethod: filter,
+  renderAfterExpand: false,
+  expandOnClickNode: true,
+  checkOnClickNode: false,
+  accordion: true,
+  indent: 18,
 })
 const modelNode: TreeNode<ConsumerTreeNode> | null = modelStore.getNode(1)
-const sourceStore = new SourceTreeStore<ConsumerTreeNode>({ data: [], key: 'id' })
+const sourceStore = new SourceTreeStore<ConsumerTreeNode>({
+  data: [],
+  key: 'id',
+  renderAfterExpand: false,
+  expandOnClickNode: true,
+  checkOnClickNode: false,
+  accordion: true,
+  indent: 18,
+})
 const sourceNode: SourceTreeNode<ConsumerTreeNode> | null = sourceStore.getNode(1)
+const childOptions: NodeChildOptions<ConsumerTreeNode> = {
+  data: { id: 2, name: 'child' },
+}
+const sourceChildOptions: SourceNodeChildOptions<ConsumerTreeNode> = childOptions
+modelNode?.insertChild(childOptions)
+sourceNode?.insertChild(sourceChildOptions)
 const nodeConstructor: typeof Node = SourceNode
 const sourceKey: SourceTreeKey = 1
 const sourceData: SourceTreeNodeData = { id: sourceKey }
@@ -104,6 +132,8 @@ export type {
   DefaultExportMatchesPlugin,
   InstallRegistrarMatches,
   NamedExportMatchesDefault,
+  PlainNodeMatchesDistBase,
+  PlainNodeMatchesSourceBase,
   RegistrarComponentMatches,
   SourceDefaultMatchesDist,
   SourceNamedMatchesDefault,

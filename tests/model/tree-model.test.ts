@@ -6,7 +6,7 @@ import type Node from '../../src/model/node'
 interface Item {
   id: number
   label: string
-  disabled?: boolean
+  disabled?: boolean | number | string
   leaf?: boolean
   children?: Item[] | null
 }
@@ -68,9 +68,66 @@ describe('tree construction', () => {
     expect(node(store, 1).checked).toBe(false)
     expect(node(store, 1).indeterminate).toBe(true)
   })
+
+  it('treats a truthy autoExpandParent option as enabled during construction', () => {
+    const store = createStore({
+      autoExpandParent: 1,
+      defaultExpandedKeys: [11],
+    })
+
+    expect(node(store, 11).expanded).toBe(true)
+    expect(node(store, 1).expanded).toBe(true)
+  })
+
+  it('treats a truthy autoExpandParent option as enabled when defaults change', () => {
+    const store = createStore({ autoExpandParent: 'enabled' })
+
+    store.setDefaultExpandedKeys([11])
+
+    expect(node(store, 11).expanded).toBe(true)
+    expect(node(store, 1).expanded).toBe(true)
+  })
 })
 
 describe('checking', () => {
+  it('preserves truthy disabled values read from a mapped data field', () => {
+    const store = createStore({
+      data: [
+        {
+          id: 1,
+          label: 'Parent',
+          children: [{ id: 11, label: 'Locked', disabled: 1 }],
+        },
+      ],
+    })
+
+    expect(node(store, 11).disabled).toBe(1)
+    store.setChecked(1, true, true)
+    expect(node(store, 11).checked).toBe(false)
+  })
+
+  it('preserves truthy disabled values returned by a property function', () => {
+    const store = createStore({
+      data: [
+        {
+          id: 1,
+          label: 'Parent',
+          children: [{ id: 11, label: 'Locked' }],
+        },
+      ],
+      props: {
+        children: 'children',
+        label: 'label',
+        disabled: () => 'locked',
+        isLeaf: 'leaf',
+      },
+    })
+
+    expect(node(store, 11).disabled).toBe('locked')
+    store.setChecked(1, true, true)
+    expect(node(store, 11).checked).toBe(false)
+  })
+
   it('keeps checkStrictly changes local to the requested node', () => {
     const store = createStore({ checkStrictly: true })
 

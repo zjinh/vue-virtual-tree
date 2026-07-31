@@ -430,7 +430,7 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
 
     keys.forEach((key) => {
       const node = this.getNode(key);
-      if (node) node.expand(null, this.autoExpandParent === true);
+      if (node) node.expand(null, Boolean(this.autoExpandParent));
     });
   }
 

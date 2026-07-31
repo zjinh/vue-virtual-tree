@@ -1,7 +1,7 @@
 import type Node from './node'
 
 export type TreeKey = string | number
-export type TreeNodeData = Record<string, unknown>
+export type TreeNodeData = object
 export type TreeDataKey<T extends TreeNodeData> = Extract<keyof T, string>
 export type TreePropertyGetter<
   T extends TreeNodeData,
@@ -15,7 +15,7 @@ export type TreeProperty<
 export type TreeOptionProps<T extends TreeNodeData = TreeNodeData> = {
   children?: TreeDataKey<T>
   label?: TreeProperty<T>
-  disabled?: TreeProperty<T, boolean>
+  disabled?: TreeProperty<T>
   isLeaf?: TreeProperty<T, boolean>
 } & Partial<Record<string, TreeProperty<T>>>
 
@@ -33,7 +33,7 @@ export type FilterFunction<
 
 export const NODE_KEY = '$treeNodeId'
 
-export interface MarkedTreeNodeData extends TreeNodeData {
+export interface MarkedTreeNodeData {
   [NODE_KEY]?: number
 }
 
@@ -41,7 +41,8 @@ export const markNodeData = (
   node: Pick<Node<TreeNodeData>, 'id'>,
   data: TreeNodeData | null | undefined,
 ): void => {
-  if (!data || data[NODE_KEY]) return
+  const dataRecord = data as MarkedTreeNodeData | null | undefined
+  if (!dataRecord || dataRecord[NODE_KEY]) return
   Object.defineProperty(data, NODE_KEY, {
     value: node.id,
     enumerable: false,
@@ -54,8 +55,9 @@ export const getNodeKey = <T extends TreeNodeData>(
   key: TreeDataKey<T> | null | undefined,
   data: T,
 ): TreeKey | undefined => {
-  if (!key) return data[NODE_KEY] as number | undefined
-  return data[key] as TreeKey | undefined
+  const dataRecord = data as Record<string, unknown>
+  if (!key) return dataRecord[NODE_KEY] as number | undefined
+  return dataRecord[key] as TreeKey | undefined
 }
 
 export const arrayFindIndex = <T>(
