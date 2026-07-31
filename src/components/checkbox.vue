@@ -111,7 +111,7 @@ export default defineComponent({
   font-size: 14px;
   user-select: none;
   margin-right: 8px;
-  
+
   .checkbox {
     position: relative;
     display: inline-block;
@@ -126,11 +126,11 @@ export default defineComponent({
                 background-color .25s cubic-bezier(.71,-.46,.2,1.46);
     cursor: pointer;
     outline: none;
-    
+
     &:checked {
       background-color: #409eff;
       border-color: #409eff;
-      
+
       &::after {
         box-sizing: content-box;
         content: "";
@@ -145,11 +145,11 @@ export default defineComponent({
         width: 3px;
       }
     }
-    
+
     &:indeterminate {
       background-color: #409eff;
       border-color: #409eff;
-      
+
       &::after {
         content: '';
         position: absolute;
@@ -162,17 +162,17 @@ export default defineComponent({
         top: 5px;
       }
     }
-    
+
     &:disabled {
       background-color: #f5f7fa;
       border-color: #e4e7ed;
       cursor: not-allowed;
-      
+
       &:checked {
         background-color: #f5f7fa;
         border-color: #e4e7ed;
       }
-      
+
       &:indeterminate {
         background-color: #f5f7fa;
         border-color: #e4e7ed;
