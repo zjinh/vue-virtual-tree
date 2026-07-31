@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import * as VueRuntime from 'vue'
 
+import DemoApp from '../../examples/shared/App.vue'
+import type { DemoTreeNode } from '../../examples/shared/data'
 import VirtualList from '../../src/components/virtualList'
 import TreeComponent from '../../src/index.vue'
 import type {
@@ -55,6 +57,34 @@ interface MountedResource {
   unmount(): void
 }
 
+interface DemoAppMethodRegistry {
+  applyAndRemount(this: {
+    appliedOptions: Record<string, string | number | boolean>
+    draftOptions: Record<string, string | number | boolean>
+    refreshObservedMetrics(): Promise<void>
+    targetKey: string
+    totalNodes: number
+    treeData: DemoTreeNode[]
+    treeVersion: number
+  }): void
+  loadLazyNode(
+    this: {
+      $nextTick(): Promise<void>
+      refreshObservedMetrics(): Promise<void>
+    },
+    node: { data: DemoTreeNode | DemoTreeNode[]; level: number },
+    resolve: (children: DemoTreeNode[]) => void,
+  ): void
+  setDraftBoolean(
+    this: {
+      appliedOptions: Record<string, string | number | boolean>
+      draftOptions: Record<string, string | number | boolean>
+    },
+    name: string,
+    event: Event,
+  ): void
+}
+
 interface Vue2Constructor {
   new (options: Record<string, unknown>): {
     $destroy(): void
@@ -70,6 +100,7 @@ interface Vue3Application {
 }
 
 const mounted: MountedResource[] = []
+const demoAppMethods = (DemoApp as unknown as { methods: DemoAppMethodRegistry }).methods
 
 const createTreeData = (): Item[] => [
   {
@@ -280,6 +311,73 @@ afterEach(() => {
 })
 
 describe(`${__VUE_RUNTIME__} component runtime`, () => {
+  test('loads the demo virtual root key before resolving one lazy level at a time', () => {
+    vi.useFakeTimers()
+    const context = {
+      $nextTick: () => new Promise<void>(() => {}),
+      refreshObservedMetrics: vi.fn(async () => {}),
+    }
+    const resolveNode = (node: { data: DemoTreeNode | DemoTreeNode[]; level: number }) => {
+      let resolved: DemoTreeNode[] | undefined
+      demoAppMethods.loadLazyNode.call(context, node, (children) => {
+        resolved = children
+      })
+      vi.advanceTimersByTime(180)
+      expect(resolved).toBeDefined()
+      return resolved!
+    }
+
+    const roots = resolveNode({ data: [], level: 0 })
+    expect(roots.map(({ id }) => id)).toEqual(['lazy-root'])
+    expect(roots[0]?.children).toBeUndefined()
+
+    const levelTwo = resolveNode({ data: roots[0]!, level: 1 })
+    expect(levelTwo.map(({ id }) => id)).toEqual(
+      Array.from({ length: 6 }, (_, index) => `lazy-root-${index + 1}`),
+    )
+    expect(levelTwo.every(({ leaf, children }) => leaf === false && children === undefined)).toBe(true)
+
+    const levelThree = resolveNode({ data: levelTwo[0]!, level: 2 })
+    expect(levelThree.map(({ id }) => id)).toEqual(
+      Array.from({ length: 6 }, (_, index) => `lazy-root-1-${index + 1}`),
+    )
+    expect(levelThree.every(({ leaf }) => leaf === true)).toBe(true)
+  })
+
+  test('turns off default expansion only while the demo lazy mode is selected', () => {
+    const state = {
+      appliedOptions: { highlightCurrent: true },
+      draftOptions: { defaultExpandAll: true, lazy: false },
+    }
+    const input = document.createElement('input')
+
+    input.checked = true
+    demoAppMethods.setDraftBoolean.call(state, 'lazy', { target: input } as unknown as Event)
+    expect(state.draftOptions).toMatchObject({ lazy: true, defaultExpandAll: false })
+
+    input.checked = false
+    demoAppMethods.setDraftBoolean.call(state, 'lazy', { target: input } as unknown as Event)
+    expect(state.draftOptions).toMatchObject({ lazy: false, defaultExpandAll: true })
+  })
+
+  test('enforces collapsed defaults when applying the demo lazy scenario', () => {
+    const state = {
+      appliedOptions: {},
+      draftOptions: { defaultExpandAll: true, lazy: true },
+      refreshObservedMetrics: vi.fn(async () => {}),
+      targetKey: '',
+      totalNodes: 0,
+      treeData: [] as DemoTreeNode[],
+      treeVersion: 0,
+    }
+
+    demoAppMethods.applyAndRemount.call(state)
+
+    expect(state.draftOptions.defaultExpandAll).toBe(false)
+    expect(state.appliedOptions.defaultExpandAll).toBe(false)
+    expect(state.targetKey).toBe('lazy-root')
+  })
+
   test('mounts a minimal tree and renders scoped slot props', async () => {
     const result = await mountTree({ useSlot: true })
 

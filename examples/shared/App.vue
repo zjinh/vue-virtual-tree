@@ -519,6 +519,9 @@ export default defineComponent({
     setDraftBoolean(name: string, event: Event): void {
       const input = event.target as HTMLInputElement
       this.draftOptions[name] = input.checked
+      if (name === 'lazy') {
+        this.draftOptions.defaultExpandAll = !input.checked
+      }
       if (name === 'highlightCurrent') {
         this.appliedOptions.highlightCurrent = input.checked
       }
@@ -552,6 +555,9 @@ export default defineComponent({
       await this.refreshObservedMetrics()
     },
     applyAndRemount(): void {
+      if (this.draftOptions.lazy) {
+        this.draftOptions.defaultExpandAll = false
+      }
       this.appliedOptions = { ...this.draftOptions }
       if (this.appliedOptions.lazy) {
         this.treeData = createLazyDemoData()
@@ -606,11 +612,14 @@ export default defineComponent({
       return query.length === 0 || data.label.toLowerCase().includes(query)
     },
     loadLazyNode(
-      node: { data: DemoTreeNode; level: number },
+      node: { data: DemoTreeNode | DemoTreeNode[]; level: number },
       resolve: (children: DemoTreeNode[]) => void,
     ): void {
       window.setTimeout(async () => {
-        resolve(createLazyChildren({ ...node.data, level: node.level }))
+        const children = node.level === 0
+          ? createLazyDemoData()
+          : createLazyChildren(node.data as DemoTreeNode)
+        resolve(children)
         await waitForStablePaint(() => this.$nextTick())
         await this.refreshObservedMetrics()
       }, 180)
