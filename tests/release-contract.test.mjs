@@ -22,6 +22,15 @@ test('pins the package publication toolchain', () => {
   assert.equal(packageJson.publishConfig.access, 'public')
 })
 
+test('exposes a stable-only release policy gate', async () => {
+  assert.equal(
+    packageJson.scripts['release:policy'],
+    'node scripts/check-release-policy.mjs',
+  )
+  await access(new URL('scripts/release-policy.mjs', root))
+  await access(new URL('scripts/check-release-policy.mjs', root))
+})
+
 test('layers source, tarball, publication, and CI gates without lifecycle recursion', () => {
   assert.equal(packageJson.scripts['test:tarball'], 'node --test tests/tarball-contract.test.mjs')
   assert.equal(packageJson.scripts['test:attw'], 'node scripts/check-attw.mjs')

@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   publish:
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,6 +33,11 @@ jobs:
           npm --version
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Validate stable release
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: pnpm run release:policy
       - name: Verify release package
         run: pnpm run publish:check
       - name: Publish verified tarball

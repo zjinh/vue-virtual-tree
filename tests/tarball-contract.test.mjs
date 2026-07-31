@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import test from 'node:test'
+import { createIsolatedNpmEnvironment } from '../scripts/isolated-npm-environment.mjs'
 import { releaseTarballPath } from '../scripts/release-tarball.mjs'
 
 const run = promisify(execFile)
@@ -102,22 +103,12 @@ void node${index}
 `).join('\n')
 }
 
-function isolatedEnvironment(consumerRoot) {
-  const environment = { ...process.env }
-  for (const name of Object.keys(environment)) {
-    if (/token|_auth/i.test(name)) delete environment[name]
-  }
-  environment.npm_config_userconfig = join(consumerRoot, '.npmrc')
-  return environment
-}
-
 async function verifyConsumer(runtime, version) {
   const consumerRoot = await mkdtemp(join(tmpdir(), `vue-virtual-tree-${runtime}-`))
 
   try {
     await Promise.all([
       writeFile(join(consumerRoot, 'package.json'), packageJson(version)),
-      writeFile(join(consumerRoot, '.npmrc'), 'registry=https://registry.npmjs.org/\n'),
       writeFile(join(consumerRoot, 'runtime.mjs'), runtimeFixture(runtime, version)),
       writeFile(join(consumerRoot, 'types.ts'), typeFixture(runtime)),
       writeFile(join(consumerRoot, 'tsconfig.json'), JSON.stringify({
@@ -136,7 +127,7 @@ async function verifyConsumer(runtime, version) {
 
     const pnpmCli = process.env.npm_execpath
     assert.ok(pnpmCli, 'npm_execpath must point to the pnpm JavaScript CLI')
-    const environment = isolatedEnvironment(consumerRoot)
+    const environment = await createIsolatedNpmEnvironment(process.env, consumerRoot)
 
     await run(process.execPath, [pnpmCli, 'install', '--frozen-lockfile=false', '--ignore-scripts'], {
       cwd: consumerRoot,
