@@ -30,7 +30,7 @@ Workbench 运行真实组件，并为两个 Vue 运行时提供受支持的 prop
 <!-- section:installation -->
 ## 安装
 
-任选一种包管理器：
+以下 registry 安装命令在 npm 首次发布完成后才可用。任选一种包管理器：
 
 ```sh
 pnpm add @zjinh/vue-virtual-tree
@@ -45,6 +45,17 @@ yarn add @zjinh/vue-virtual-tree
 ```
 
 应用还需要安装兼容的 Vue peer：`/vue2` 入口使用 Vue 2.7.x，默认入口和 `/vue3` 使用 Vue 3 >= 3.2。
+
+如果包尚未发布，请先在 checkout 中构建已验证的 tarball，再到消费应用中安装该文件：
+
+```sh
+# 在 vue-virtual-tree checkout 中
+pnpm install --frozen-lockfile
+pnpm run publish:check
+
+# 在消费应用中
+pnpm add file:../vue-virtual-tree/.release/package.tgz
+```
 
 <!-- section:quick-start -->
 ## 快速开始
@@ -90,13 +101,34 @@ Vue.use(VueVirtualTree)
 
 ### Vue 2.7 局部注册
 
-```ts
+```vue
+<script lang="ts">
 import VueVirtualTree from '@zjinh/vue-virtual-tree/vue2'
 import '@zjinh/vue-virtual-tree/style.css'
 
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
+
 export default {
   components: { VueVirtualTree },
+  data(): { data: DemoNode[] } {
+    return {
+      data: [{
+        id: 1,
+        label: 'Root',
+        children: [{ id: 2, label: 'Child' }],
+      }],
+    }
+  },
 }
+</script>
+
+<template>
+  <VueVirtualTree :data="data" :height="320" node-key="id"></VueVirtualTree>
+</template>
 ```
 
 ### 最小 Vue 3 树示例
@@ -149,6 +181,8 @@ const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 <!-- section:practical-usage -->
 ## 实用用法
 
+本节完整示例均为 Vue 3 SFC。Vue 2.7 使用相同公开 API，但需要采用 `/vue2` 入口和 [Vue 2.7 快速开始](#vue-27-局部注册)中的 Options API。
+
 ### 布局与数据约束
 
 - 为树提供固定且能实际计算出的高度。直接传数字 `height`，例如 `320`，最简单。使用默认 `height="100%"` 时，父元素必须有非零计算高度。
@@ -168,20 +202,57 @@ const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 
 ### 复选框与当前节点
 
+<!-- readme-example:checkbox-current:start -->
 ```vue
-<VueVirtualTree
-  ref="tree"
-  :data="data"
-  :height="320"
-  node-key="id"
-  show-checkbox
-  highlight-current
-  :default-expanded-keys="[1]"
-  :default-checked-keys="[2]"
-  @check="onCheck"
-  @current-change="onCurrentChange"
-></VueVirtualTree>
+<script setup lang="ts">
+import VueVirtualTree, {
+  type TreeNode,
+  type VueVirtualTreeCheckState,
+} from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
+
+const data: DemoNode[] = [{
+  id: 1,
+  label: 'Root',
+  children: [{ id: 2, label: 'Child' }],
+}]
+
+function onCheck(
+  nodeData: DemoNode,
+  state: VueVirtualTreeCheckState<DemoNode>,
+): void {
+  console.log(nodeData.id, state.checkedKeys)
+}
+
+function onCurrentChange(
+  nodeData: DemoNode | null,
+  node: TreeNode<DemoNode> | null,
+): void {
+  console.log(nodeData?.id, node?.key)
+}
+</script>
+
+<template>
+  <VueVirtualTree
+    :data="data"
+    :height="320"
+    node-key="id"
+    show-checkbox
+    highlight-current
+    :default-expanded-keys="[1]"
+    :default-checked-keys="[2]"
+    @check="onCheck"
+    @current-change="onCurrentChange"
+  ></VueVirtualTree>
+</template>
 ```
+<!-- readme-example:checkbox-current:end -->
 
 `highlightCurrent` 只门控当前行的 `is-current` 样式。关闭高亮后，点击或设置当前节点仍会更新 current 状态。
 
@@ -189,15 +260,28 @@ const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 
 调用 `filter()` 前必须提供 `filterNodeMethod`。下面直接使用原生输入框，不依赖其他 UI 库。
 
+<!-- readme-example:filter:start -->
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import type {
-  FilterFunction,
-  VueVirtualTreeInstance,
+import VueVirtualTree, {
+  type FilterFunction,
+  type VueVirtualTreeInstance,
 } from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
 
 const query = ref('')
+const data: DemoNode[] = [{
+  id: 1,
+  label: 'Root',
+  children: [{ id: 2, label: 'Searchable child' }],
+}]
 const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 const filterNode: FilterFunction<DemoNode, string> = (value, data) =>
   data.label.toLowerCase().includes(value.toLowerCase())
@@ -218,20 +302,30 @@ function applyFilter() {
   ></VueVirtualTree>
 </template>
 ```
+<!-- readme-example:filter:end -->
 
 ### 懒加载
 
+<!-- readme-example:lazy:start -->
 ```vue
 <script setup lang="ts">
-import type { LoadFunction } from '@zjinh/vue-virtual-tree'
+import VueVirtualTree, {
+  type LoadFunction,
+} from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+}
 
 const load: LoadFunction<DemoNode> = (node, resolve) => {
   if (node.level === 0) {
-    resolve([{ id: 1, label: '懒加载根节点' }])
+    resolve([{ id: 1, label: 'Lazy root' }])
     return
   }
   resolve(node.level < 2
-    ? [{ id: node.data.id + 10, label: `${node.data.label} 的子节点` }]
+    ? [{ id: node.data.id + 10, label: `Child of ${node.data.label}` }]
     : [])
 }
 </script>
@@ -245,6 +339,7 @@ const load: LoadFunction<DemoNode> = (node, resolve) => {
   ></VueVirtualTree>
 </template>
 ```
+<!-- readme-example:lazy:end -->
 
 启用 `lazy` 后，应用必须调用 `resolve()` 并传入子节点数组。如果能提前确定叶子状态，可通过 `props.isLeaf` 映射布尔字段。
 
@@ -252,36 +347,87 @@ const load: LoadFunction<DemoNode> = (node, resolve) => {
 
 真实 slot 契约是 `{ node, item, selectChange }`，其中 `item` 是原始节点数据。下面把 `item` 局部别名为 `data`，并用提供的回调改变复选状态：
 
+<!-- readme-example:slot:start -->
 ```vue
-<VueVirtualTree
-  :data="data"
-  :height="320"
-  node-key="id"
-  show-checkbox
-  :default-expanded-keys="[1]"
->
-  <template #default="{ node, item: data, selectChange }">
-    <label :style="{ paddingLeft: `${(node.level - 1) * 18}px` }">
-      <input
-        type="checkbox"
-        :checked="node.checked"
-        :disabled="Boolean(node.disabled)"
-        @change="selectChange($event.target.checked)"
-      >
-      {{ data.label }}
-    </label>
-  </template>
-</VueVirtualTree>
+<script setup lang="ts">
+import VueVirtualTree, {
+  type VueVirtualTreeSelectChange,
+} from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
+
+const data: DemoNode[] = [{
+  id: 1,
+  label: 'Root',
+  children: [{ id: 2, label: 'Child' }],
+}]
+
+function labelOf(item: object): string {
+  return (item as DemoNode).label
+}
+
+function updateSelection(
+  selectChange: VueVirtualTreeSelectChange,
+  event: Event,
+): void {
+  const input = event.target
+  if (input instanceof HTMLInputElement) selectChange(input.checked)
+}
+</script>
+
+<template>
+  <VueVirtualTree
+    :data="data"
+    :height="320"
+    node-key="id"
+    show-checkbox
+    :default-expanded-keys="[1]"
+  >
+    <template #default="{ node, item: data, selectChange }">
+      <label :style="{ paddingLeft: `${(node.level - 1) * 18}px` }">
+        <input
+          type="checkbox"
+          :checked="node.checked"
+          :disabled="Boolean(node.disabled)"
+          @change="updateSelection(selectChange, $event)"
+        >
+        {{ labelOf(data) }}
+      </label>
+    </template>
+  </VueVirtualTree>
+</template>
 ```
+<!-- readme-example:slot:end -->
 
 传入默认 slot 会替换内置行内容，包括展开控件和内置复选框。自定义内容需要自行提供所需控件。
 
 ### 通过 ref 调用方法
 
+<!-- readme-example:ref-methods:start -->
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { VueVirtualTreeInstance } from '@zjinh/vue-virtual-tree'
+import VueVirtualTree, {
+  type VueVirtualTreeInstance,
+} from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
+
+const data: DemoNode[] = [{
+  id: 1,
+  label: 'Root',
+  children: [{ id: 2, label: 'Child' }],
+}]
 
 const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 
@@ -297,11 +443,12 @@ function selectFirstChild() {
 </script>
 
 <template>
-  <button type="button" @click="inspectSelection">查看选择状态</button>
-  <button type="button" @click="selectFirstChild">选择子节点</button>
+  <button type="button" @click="inspectSelection">Inspect selection</button>
+  <button type="button" @click="selectFirstChild">Select child</button>
   <VueVirtualTree ref="tree" :data="data" :height="320" node-key="id"></VueVirtualTree>
 </template>
 ```
+<!-- readme-example:ref-methods:end -->
 
 <!-- section:api -->
 ## 公开 API
@@ -433,12 +580,12 @@ import type {
 - Vue 2 支持范围仅为 Vue 2.7.x，更早的 Vue 2 不在 peer 和构建契约内。
 - 发布包仅提供 ESM，消费者需要支持 ESM 的构建工具或运行时。
 - 虚拟化假设行高固定且为正数。可变行高、内容换行或零高度容器会导致区间计算错误。
-- 现代浏览器需要提供 ESM、`ResizeObserver` 和 `requestAnimationFrame`。项目没有单独验证传统浏览器构建。
+- 组件需要支持 ESM 的环境和 `ResizeObserver`。项目没有单独验证传统浏览器构建。
 - 虚拟化减少的是渲染 DOM 行数，不是完整模型数据成本。过滤、批量选中和其他全树操作仍可能随逻辑节点数增长。
 - 懒加载要求应用加载器调用 `resolve(T[])`。加载策略、重试、取消和服务端错误处理属于应用职责。
 - 即使运行时仍保留兼容 prop，`renderContent` 也已经 deprecated 且 unsupported，请使用默认 scoped slot。
 
-Workbench 中的耗时、帧采样、渲染行数和虚拟化比例都是当前浏览器、硬件、数据与交互下的实时测量，只用于诊断，不承诺固定性能数字。JS heap 使用 Chromium 可选的 `performance.memory` API，其他浏览器可能显示不可用。
+Workbench 测量代码使用 `requestAnimationFrame` 和可选的 `performance` API。其中的耗时、帧采样、渲染行数和虚拟化比例都是当前浏览器、硬件、数据与交互下的实时测量，只用于诊断，不承诺固定性能数字。JS heap 使用 Chromium 可选的 `performance.memory` API，其他浏览器可能显示不可用。
 
 <!-- section:development -->
 ## 开发与质量门禁

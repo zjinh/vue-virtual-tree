@@ -91,6 +91,7 @@ test('ships mirrored English and Simplified Chinese README documents', () => {
   assert.ok(chinese, 'README.zh-CN.md must exist')
   assert.deepEqual(packageJson.files, ['dist', 'README.md', 'README.zh-CN.md', 'LICENSE'])
   assert.match(packageJson.scripts['test:package'], /readme-contract\.test\.mjs/)
+  assert.match(packageJson.scripts['test:package'], /readme-examples\.test\.mjs/)
 
   const languageLinks = '[English](./README.md) | [简体中文](./README.zh-CN.md)'
   assert.equal(english.split('\n')[0], languageLinks)
@@ -150,6 +151,22 @@ test('documents compatibility, entrypoints, demos, installation, and runnable st
   }
 })
 
+test('keeps registry installation conditional and provides a verified local tarball path', () => {
+  assert.ok(english?.includes(
+    'These registry commands work after the first npm publication.',
+  ))
+  assert.ok(chinese?.includes(
+    '以下 registry 安装命令在 npm 首次发布完成后才可用。',
+  ))
+  for (const [name, document] of documents) {
+    assert.ok(document?.includes('pnpm run publish:check'), `${name} must build a verified tarball`)
+    assert.ok(
+      document?.includes('pnpm add file:../vue-virtual-tree/.release/package.tgz'),
+      `${name} must document local tarball installation`,
+    )
+  }
+})
+
 test('documents practical virtual-tree usage without legacy dependency examples', () => {
   for (const [name, document] of documents) {
     assert.ok(document, `${name} must exist`)
@@ -175,6 +192,32 @@ test('documents practical virtual-tree usage without legacy dependency examples'
     assert.doesNotMatch(document, /\b(?:draggable|accordion|allow-drag|allow-drop)\b/)
     assert.doesNotMatch(document, /(?:expand-on-click-node|check-on-click-node)/)
     assert.doesNotMatch(document, /[\u2013\u2014]/)
+  }
+})
+
+test('scopes practical examples to Vue 3 and browser measurement APIs to Workbench', () => {
+  assert.ok(english?.includes(
+    'The complete examples in this section are Vue 3 SFCs.',
+  ))
+  assert.ok(chinese?.includes(
+    '本节完整示例均为 Vue 3 SFC。',
+  ))
+
+  for (const [name, document] of documents) {
+    assert.match(document, /Vue 2\.7[\s\S]*\/vue2[\s\S]*Options API/)
+    const resizeObserverLine = document
+      .split('\n')
+      .find((line) => line.includes('`ResizeObserver`'))
+    assert.ok(resizeObserverLine, `${name} must document ResizeObserver`)
+    assert.doesNotMatch(resizeObserverLine, /requestAnimationFrame|performance/)
+    for (const api of ['`requestAnimationFrame`', '`performance`']) {
+      const lines = document.split('\n').filter((line) => line.includes(api))
+      assert.ok(lines.length > 0, `${name} must document ${api}`)
+      assert.ok(
+        lines.every((line) => line.includes('Workbench')),
+        `${name} must scope ${api} to Workbench`,
+      )
+    }
   }
 })
 

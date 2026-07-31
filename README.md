@@ -30,7 +30,7 @@ The Workbench runs the real component and exposes the supported props, methods, 
 <!-- section:installation -->
 ## Installation
 
-Choose one package manager:
+These registry commands work after the first npm publication. Choose one package manager:
 
 ```sh
 pnpm add @zjinh/vue-virtual-tree
@@ -45,6 +45,17 @@ yarn add @zjinh/vue-virtual-tree
 ```
 
 Install a compatible Vue peer in the application: Vue 2.7.x for the `/vue2` entry, or Vue 3 >= 3.2 for the default and `/vue3` entries.
+
+If the package has not yet been published, build the verified tarball from a checkout, then install that file in the consuming application:
+
+```sh
+# In the vue-virtual-tree checkout
+pnpm install --frozen-lockfile
+pnpm run publish:check
+
+# In the consuming application
+pnpm add file:../vue-virtual-tree/.release/package.tgz
+```
 
 <!-- section:quick-start -->
 ## Quick start
@@ -90,13 +101,34 @@ Vue.use(VueVirtualTree)
 
 ### Vue 2.7 local registration
 
-```ts
+```vue
+<script lang="ts">
 import VueVirtualTree from '@zjinh/vue-virtual-tree/vue2'
 import '@zjinh/vue-virtual-tree/style.css'
 
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
+
 export default {
   components: { VueVirtualTree },
+  data(): { data: DemoNode[] } {
+    return {
+      data: [{
+        id: 1,
+        label: 'Root',
+        children: [{ id: 2, label: 'Child' }],
+      }],
+    }
+  },
 }
+</script>
+
+<template>
+  <VueVirtualTree :data="data" :height="320" node-key="id"></VueVirtualTree>
+</template>
 ```
 
 ### Minimal Vue 3 tree
@@ -149,6 +181,8 @@ const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 <!-- section:practical-usage -->
 ## Practical usage
 
+The complete examples in this section are Vue 3 SFCs. For Vue 2.7, use the same public API with the `/vue2` entry and the Options API shown in the [Vue 2.7 quick start](#vue-27-local-registration).
+
 ### Layout and data rules
 
 - Give the tree a fixed, resolvable height. A numeric `height`, such as `320`, is the simplest option. With the default `height="100%"`, its parent must have a non-zero computed height.
@@ -168,20 +202,57 @@ Virtualization limits mounted DOM rows; it does not remove the in-memory tree mo
 
 ### Checkbox and current-node state
 
+<!-- readme-example:checkbox-current:start -->
 ```vue
-<VueVirtualTree
-  ref="tree"
-  :data="data"
-  :height="320"
-  node-key="id"
-  show-checkbox
-  highlight-current
-  :default-expanded-keys="[1]"
-  :default-checked-keys="[2]"
-  @check="onCheck"
-  @current-change="onCurrentChange"
-></VueVirtualTree>
+<script setup lang="ts">
+import VueVirtualTree, {
+  type TreeNode,
+  type VueVirtualTreeCheckState,
+} from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
+
+const data: DemoNode[] = [{
+  id: 1,
+  label: 'Root',
+  children: [{ id: 2, label: 'Child' }],
+}]
+
+function onCheck(
+  nodeData: DemoNode,
+  state: VueVirtualTreeCheckState<DemoNode>,
+): void {
+  console.log(nodeData.id, state.checkedKeys)
+}
+
+function onCurrentChange(
+  nodeData: DemoNode | null,
+  node: TreeNode<DemoNode> | null,
+): void {
+  console.log(nodeData?.id, node?.key)
+}
+</script>
+
+<template>
+  <VueVirtualTree
+    :data="data"
+    :height="320"
+    node-key="id"
+    show-checkbox
+    highlight-current
+    :default-expanded-keys="[1]"
+    :default-checked-keys="[2]"
+    @check="onCheck"
+    @current-change="onCurrentChange"
+  ></VueVirtualTree>
+</template>
 ```
+<!-- readme-example:checkbox-current:end -->
 
 `highlightCurrent` only gates the `is-current` row styling. Clicking or setting a current node still updates current-node state when highlighting is off.
 
@@ -189,15 +260,28 @@ Virtualization limits mounted DOM rows; it does not remove the in-memory tree mo
 
 `filter()` requires `filterNodeMethod`. The native input below has no UI-library dependency.
 
+<!-- readme-example:filter:start -->
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import type {
-  FilterFunction,
-  VueVirtualTreeInstance,
+import VueVirtualTree, {
+  type FilterFunction,
+  type VueVirtualTreeInstance,
 } from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
 
 const query = ref('')
+const data: DemoNode[] = [{
+  id: 1,
+  label: 'Root',
+  children: [{ id: 2, label: 'Searchable child' }],
+}]
 const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 const filterNode: FilterFunction<DemoNode, string> = (value, data) =>
   data.label.toLowerCase().includes(value.toLowerCase())
@@ -218,12 +302,22 @@ function applyFilter() {
   ></VueVirtualTree>
 </template>
 ```
+<!-- readme-example:filter:end -->
 
 ### Lazy loading
 
+<!-- readme-example:lazy:start -->
 ```vue
 <script setup lang="ts">
-import type { LoadFunction } from '@zjinh/vue-virtual-tree'
+import VueVirtualTree, {
+  type LoadFunction,
+} from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+}
 
 const load: LoadFunction<DemoNode> = (node, resolve) => {
   if (node.level === 0) {
@@ -245,6 +339,7 @@ const load: LoadFunction<DemoNode> = (node, resolve) => {
   ></VueVirtualTree>
 </template>
 ```
+<!-- readme-example:lazy:end -->
 
 When `lazy` is enabled, call `resolve()` with the child array. Map a boolean leaf field through `props.isLeaf` when the leaf state is known in advance.
 
@@ -252,36 +347,87 @@ When `lazy` is enabled, call `resolve()` with the child array. Map a boolean lea
 
 The actual slot contract is `{ node, item, selectChange }`. `item` is the raw node data. This example aliases `item` to the local name `data` and uses the supplied checkbox callback:
 
+<!-- readme-example:slot:start -->
 ```vue
-<VueVirtualTree
-  :data="data"
-  :height="320"
-  node-key="id"
-  show-checkbox
-  :default-expanded-keys="[1]"
->
-  <template #default="{ node, item: data, selectChange }">
-    <label :style="{ paddingLeft: `${(node.level - 1) * 18}px` }">
-      <input
-        type="checkbox"
-        :checked="node.checked"
-        :disabled="Boolean(node.disabled)"
-        @change="selectChange($event.target.checked)"
-      >
-      {{ data.label }}
-    </label>
-  </template>
-</VueVirtualTree>
+<script setup lang="ts">
+import VueVirtualTree, {
+  type VueVirtualTreeSelectChange,
+} from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
+
+const data: DemoNode[] = [{
+  id: 1,
+  label: 'Root',
+  children: [{ id: 2, label: 'Child' }],
+}]
+
+function labelOf(item: object): string {
+  return (item as DemoNode).label
+}
+
+function updateSelection(
+  selectChange: VueVirtualTreeSelectChange,
+  event: Event,
+): void {
+  const input = event.target
+  if (input instanceof HTMLInputElement) selectChange(input.checked)
+}
+</script>
+
+<template>
+  <VueVirtualTree
+    :data="data"
+    :height="320"
+    node-key="id"
+    show-checkbox
+    :default-expanded-keys="[1]"
+  >
+    <template #default="{ node, item: data, selectChange }">
+      <label :style="{ paddingLeft: `${(node.level - 1) * 18}px` }">
+        <input
+          type="checkbox"
+          :checked="node.checked"
+          :disabled="Boolean(node.disabled)"
+          @change="updateSelection(selectChange, $event)"
+        >
+        {{ labelOf(data) }}
+      </label>
+    </template>
+  </VueVirtualTree>
+</template>
 ```
+<!-- readme-example:slot:end -->
 
 Providing the default slot replaces the built-in row body, including its expansion affordance and built-in checkbox. Custom content owns the controls it needs.
 
 ### Calling methods through a ref
 
+<!-- readme-example:ref-methods:start -->
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { VueVirtualTreeInstance } from '@zjinh/vue-virtual-tree'
+import VueVirtualTree, {
+  type VueVirtualTreeInstance,
+} from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
+
+const data: DemoNode[] = [{
+  id: 1,
+  label: 'Root',
+  children: [{ id: 2, label: 'Child' }],
+}]
 
 const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 
@@ -302,6 +448,7 @@ function selectFirstChild() {
   <VueVirtualTree ref="tree" :data="data" :height="320" node-key="id"></VueVirtualTree>
 </template>
 ```
+<!-- readme-example:ref-methods:end -->
 
 <!-- section:api -->
 ## Public API
@@ -433,12 +580,12 @@ import type {
 - Vue 2 support is limited to Vue 2.7.x. Earlier Vue 2 releases are outside the peer and build contract.
 - The published package is ESM only. Consumers need an ESM-aware bundler or runtime.
 - Virtualization assumes a positive fixed row size. Variable row heights, wrapping content, or a zero-height container can produce incorrect ranges.
-- Modern browsers must provide ESM, `ResizeObserver`, and `requestAnimationFrame`. There is no separately tested legacy-browser build.
+- The component requires an ESM-capable environment and `ResizeObserver`. There is no separately tested legacy-browser build.
 - Virtualization reduces rendered DOM rows, not the full model-data cost. Filtering, bulk checking, and other tree-wide operations can still scale with logical node count.
 - Lazy loading expects the application loader to call `resolve(T[])`. Loading policy, retries, cancellation, and server errors remain application concerns.
 - `renderContent` is deprecated and unsupported even though a runtime compatibility prop remains. Use the default scoped slot.
 
-Workbench durations, frame samples, rendered-row counts, and virtualization ratios are real-time measurements from the current browser, hardware, data, and interaction. They are diagnostics, not fixed performance promises. JS heap reporting uses the optional Chromium `performance.memory` API; other browsers can show it as unavailable.
+Workbench measurement code uses `requestAnimationFrame` and optional `performance` APIs. Its durations, frame samples, rendered-row counts, and virtualization ratios are real-time measurements from the current browser, hardware, data, and interaction. They are diagnostics, not fixed performance promises. JS heap reporting uses the optional Chromium `performance.memory` API; other browsers can show it as unavailable.
 
 <!-- section:development -->
 ## Development and quality gates
