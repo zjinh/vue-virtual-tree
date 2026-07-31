@@ -1,7 +1,7 @@
 # @zjinh/vue-virtual-tree
 ## 开发需要
 
-node20 / pnpm
+Node.js 22.22.3 / pnpm 10.33.4
 
 ## 兼容說明
 支持vue2.7,vue3+
@@ -40,14 +40,24 @@ yarn add @zjinh/vue-virtual-tree
 
 ## 引入
 
-### 全局引入
+### Vue 3 全局引入
 
 在 `main.js` 文件中引入：
 
 ```JS
-import Vue from "vue";
+import { createApp } from "vue";
 import VueVirtualTree from "@zjinh/vue-virtual-tree";
-import "@zjinh/vue-virtual-tree/dist/index.css"
+import "@zjinh/vue-virtual-tree/style.css"
+
+createApp(App).use(VueVirtualTree).mount("#app")
+```
+
+### Vue 2.7 全局引入
+
+```JS
+import Vue from "vue";
+import VueVirtualTree from "@zjinh/vue-virtual-tree/vue2";
+import "@zjinh/vue-virtual-tree/style.css"
 
 Vue.use(VueVirtualTree)
 ```
@@ -58,7 +68,7 @@ Vue.use(VueVirtualTree)
 
 ```JS
 import VueVirtualTree from "@zjinh/vue-virtual-tree";
-import "@zjinh/vue-virtual-tree/dist/index.css"
+import "@zjinh/vue-virtual-tree/style.css"
 export default {
   components: {
     VueVirtualTree
