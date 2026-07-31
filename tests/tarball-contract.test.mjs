@@ -9,7 +9,10 @@ import {
   createIsolatedNpmEnvironment,
   createIsolatedPnpmConfigArgs,
 } from '../scripts/isolated-npm-environment.mjs'
-import { releaseTarballPath } from '../scripts/release-tarball.mjs'
+import {
+  projectRoot,
+  releaseTarballPath,
+} from '../scripts/release-tarball.mjs'
 
 const run = promisify(execFile)
 
@@ -159,6 +162,15 @@ async function verifyConsumer(runtime, version) {
 test('installs and validates the packed package in isolated Vue 2 and Vue 3 consumers', async () => {
   await access(releaseTarballPath)
   assert.ok((await readFile(releaseTarballPath)).byteLength > 0)
+
+  const { stdout: archiveListing } = await run(
+    'tar',
+    ['-tzf', releaseTarballPath],
+    { cwd: projectRoot },
+  )
+  const archiveFiles = new Set(archiveListing.trim().split(/\r?\n/))
+  assert.ok(archiveFiles.has('package/README.md'))
+  assert.ok(archiveFiles.has('package/README.zh-CN.md'))
 
   await verifyConsumer('vue2', '2.7.16')
   await verifyConsumer('vue3', '3.5.40')

@@ -1,835 +1,498 @@
+[English](./README.md) | [简体中文](./README.zh-CN.md)
+
 # @zjinh/vue-virtual-tree
-## 开发需要
 
-Node.js 22.22.3 / pnpm 10.33.4
+<!-- section:positioning -->
+## Positioning and compatibility
 
-## 兼容說明
-支持vue2.7,vue3+
+`@zjinh/vue-virtual-tree` is a fixed-row-height virtual tree component with one public API for Vue 2.7 and Vue 3. It provides checkbox selection, current-node state, filtering, lazy loading, mutation methods, and a default scoped slot.
 
-## 功能列表
+| Runtime | Supported version | Import |
+| --- | --- | --- |
+| Vue 2 | Vue 2.7.x only | `@zjinh/vue-virtual-tree/vue2` |
+| Vue 3 | Vue 3 >= 3.2 | `@zjinh/vue-virtual-tree` or `@zjinh/vue-virtual-tree/vue3` |
 
--   大数据量支持虚拟滚动
--   基本树形数据的展示
--   支持checkbox选择
--   支持懒加载
--   默认展开和默认选中
--   禁用节点
--   通过多种方式选中节点和获取选中的节点信息
--   支持自定义节点内容
--   支持节点过滤
--   非虚拟滚动下，支持手风琴模式
--   非懒加载时，支持节点拖拽
--   支持滚动到指定ID节点
+The package is ESM. The default entry and `/vue3` are the Vue 3 build; `/vue2` is the Vue 2.7 build. Styles are exported from `@zjinh/vue-virtual-tree/style.css`.
 
-## 特点
+Node.js 22.22.3 and pnpm 10.33.4 are the repository's pinned development and release toolchain. They are not browser runtime requirements for package consumers.
 
--   支持虚拟滚动
--   不仅支持大数据量的树形数据展示，还支持数据的操作和更改
+<!-- section:demos -->
+## Online demos
 
-## 安装
+- [Workbench](https://zjinh.github.io/vue-virtual-tree/)
+- [Vue 2.7 demo](https://zjinh.github.io/vue-virtual-tree/vue2/)
+- [Vue 3 demo](https://zjinh.github.io/vue-virtual-tree/vue3/)
 
-```shell
+These GitHub Pages URLs become available after the repository's Pages setting uses **GitHub Actions** as its source and a deployment completes successfully. The links describe the configured target; their presence here does not claim that a deployment is currently live.
+
+The Workbench runs the real component and exposes the supported props, methods, events, data scales, and local browser measurements for both runtimes.
+
+<!-- section:installation -->
+## Installation
+
+Choose one package manager:
+
+```sh
+pnpm add @zjinh/vue-virtual-tree
+```
+
+```sh
 npm install @zjinh/vue-virtual-tree
 ```
 
-或
-
-```shell
+```sh
 yarn add @zjinh/vue-virtual-tree
 ```
 
-## 引入
+Install a compatible Vue peer in the application: Vue 2.7.x for the `/vue2` entry, or Vue 3 >= 3.2 for the default and `/vue3` entries.
 
-### Vue 3 全局引入
+<!-- section:quick-start -->
+## Quick start
 
-在 `main.js` 文件中引入：
+### Vue 3 global registration
 
-```JS
-import { createApp } from "vue";
-import VueVirtualTree from "@zjinh/vue-virtual-tree";
-import "@zjinh/vue-virtual-tree/style.css"
+```ts
+import { createApp } from 'vue'
+import VueVirtualTree from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+import App from './App.vue'
 
-createApp(App).use(VueVirtualTree).mount("#app")
+createApp(App).use(VueVirtualTree).mount('#app')
 ```
 
-### Vue 2.7 全局引入
+The explicit Vue 3 entry is equivalent:
 
-```JS
-import Vue from "vue";
-import VueVirtualTree from "@zjinh/vue-virtual-tree/vue2";
-import "@zjinh/vue-virtual-tree/style.css"
+```ts
+import VueVirtualTree from '@zjinh/vue-virtual-tree/vue3'
+```
+
+### Vue 3 local registration
+
+```ts
+import { defineComponent } from 'vue'
+import VueVirtualTree from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
+
+export default defineComponent({
+  components: { VueVirtualTree },
+})
+```
+
+### Vue 2.7 global registration
+
+```ts
+import Vue from 'vue'
+import VueVirtualTree from '@zjinh/vue-virtual-tree/vue2'
+import '@zjinh/vue-virtual-tree/style.css'
 
 Vue.use(VueVirtualTree)
 ```
 
-### 组件引入
+### Vue 2.7 local registration
 
-在组件中引入：
+```ts
+import VueVirtualTree from '@zjinh/vue-virtual-tree/vue2'
+import '@zjinh/vue-virtual-tree/style.css'
 
-```JS
-import VueVirtualTree from "@zjinh/vue-virtual-tree";
-import "@zjinh/vue-virtual-tree/style.css"
 export default {
-  components: {
-    VueVirtualTree
-  }
+  components: { VueVirtualTree },
 }
 ```
 
-## 基础用法
+### Minimal Vue 3 tree
 
-基础的树形结构展示。
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import VueVirtualTree, {
+  type VueVirtualTreeInstance,
+  type VueVirtualTreeProps,
+} from '@zjinh/vue-virtual-tree'
+import '@zjinh/vue-virtual-tree/style.css'
 
-```html
-<vue-virtual-tree :data="data" :props="defaultProps" @node-click="handleNodeClick"></vue-virtual-tree>
+interface DemoNode {
+  id: number
+  label: string
+  children?: DemoNode[]
+}
 
-<script>
-  export default {
-    data() {
-      return {
-        data: [{
-          label: '一级 1',
-          children: [{
-            label: '二级 1-1',
-            children: [{
-              label: '三级 1-1-1'
-            }]
-          }]
-        }, {
-          label: '一级 2',
-          children: [{
-            label: '二级 2-1',
-            children: [{
-              label: '三级 2-1-1'
-            }]
-          }, {
-            label: '二级 2-2',
-            children: [{
-              label: '三级 2-2-1'
-            }]
-          }]
-        }, {
-          label: '一级 3',
-          children: [{
-            label: '二级 3-1',
-            children: [{
-              label: '三级 3-1-1'
-            }]
-          }, {
-            label: '二级 3-2',
-            children: [{
-              label: '三级 3-2-1'
-            }]
-          }]
-        }],
-        defaultProps: {
-          children: 'children',
-          label: 'label'
-        }
-      };
-    },
-    methods: {
-      handleNodeClick(data) {
-        console.log(data);
-      }
-    }
-  };
+const data: DemoNode[] = [
+  {
+    id: 1,
+    label: 'Root',
+    children: [
+      { id: 2, label: 'First child' },
+      { id: 3, label: 'Second child' },
+    ],
+  },
+]
+
+const options: VueVirtualTreeProps<DemoNode> = {
+  nodeKey: 'id',
+  itemSize: 26,
+  height: 320,
+}
+const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 </script>
+
+<template>
+  <VueVirtualTree
+    ref="tree"
+    :data="data"
+    :height="options.height"
+    :item-size="options.itemSize"
+    node-key="id"
+  ></VueVirtualTree>
+</template>
 ```
 
+<!-- section:practical-usage -->
+## Practical usage
 
-## 可选择
+### Layout and data rules
 
-适用于需要选择层级时使用。
+- Give the tree a fixed, resolvable height. A numeric `height`, such as `320`, is the simplest option. With the default `height="100%"`, its parent must have a non-zero computed height.
+- Keep `itemSize > 0` and make the rendered row height match it. Variable-height or wrapping rows invalidate the virtual scroll calculation.
+- Set a stable, unique `nodeKey` for key-based methods, default checked or expanded keys, current-node keys, and reliable updates.
+- Keep the CSS import in an application entry or another location bundled exactly once.
 
-本例还展示了动态加载节点数据的方法。
-```html
-<@zjinh/vue-virtual-tree
-  :props="props"
-  :load="loadNode"
-  lazy
-  show-checkbox
-  @check-change="handleCheckChange">
-</@zjinh/vue-virtual-tree>
+### Large data and virtualization
 
-<script>
-  export default {
-    data() {
-      return {
-        props: {
-          label: 'name',
-          children: 'zones'
-        },
-        count: 1
-      };
-    },
-    methods: {
-      handleCheckChange(data, checked, indeterminate) {
-        console.log(data, checked, indeterminate);
-      },
-      handleNodeClick(data) {
-        console.log(data);
-      },
-      loadNode(node, resolve) {
-        if (node.level === 0) {
-          return resolve([{ name: 'region1' }, { name: 'region2' }]);
-        }
-        if (node.level > 3) return resolve([]);
+Virtualization limits mounted DOM rows; it does not remove the in-memory tree model or make all tree operations constant-time. For large data sets:
 
-        var hasChild;
-        if (node.data.name === 'region1') {
-          hasChild = true;
-        } else if (node.data.name === 'region2') {
-          hasChild = false;
-        } else {
-          hasChild = Math.random() > 0.5;
-        }
+- keep keys stable across updates;
+- avoid recreating the complete data array for small mutations;
+- use `lazy` when children can be fetched on demand;
+- expand only the branches users need;
+- use the Workbench presets on the target browser and hardware before choosing a production data limit.
 
-        setTimeout(() => {
-          var data;
-          if (hasChild) {
-            data = [{
-              name: 'zone' + this.count++
-            }, {
-              name: 'zone' + this.count++
-            }];
-          } else {
-            data = [];
-          }
+### Checkbox and current-node state
 
-          resolve(data);
-        }, 500);
-      }
-    }
-  };
-</script>
-```
-
-
-## 懒加载自定义叶子节点
-
-由于在点击节点时才进行该层数据的获取，默认情况下 Tree 无法预知某个节点是否为叶子节点，所以会为每个节点添加一个下拉按钮，如果节点没有下层数据，则点击后下拉按钮会消失。同时，你也可以提前告知 Tree 某个节点是否为叶子节点，从而避免在叶子节点前渲染下拉按钮。
-```html
-<@zjinh/vue-virtual-tree
-  :props="props"
-  :load="loadNode"
-  lazy
-  show-checkbox>
-</@zjinh/vue-virtual-tree>
-
-<script>
-  export default {
-    data() {
-      return {
-        props: {
-          label: 'name',
-          children: 'zones',
-          isLeaf: 'leaf'
-        },
-      };
-    },
-    methods: {
-      loadNode(node, resolve) {
-        if (node.level === 0) {
-          return resolve([{ name: 'region' }]);
-        }
-        if (node.level > 1) return resolve([]);
-
-        setTimeout(() => {
-          const data = [{
-            name: 'leaf',
-            leaf: true
-          }, {
-            name: 'zone'
-          }];
-
-          resolve(data);
-        }, 500);
-      }
-    }
-  };
-</script>
-```
-
-
-## 默认展开和默认选中
-可将 Tree 的某些节点设置为默认展开或默认选中
-
-分别通过`default-expanded-keys`和`default-checked-keys`设置默认展开和默认选中的节点。需要注意的是，此时必须设置`node-key`，其值为节点数据中的一个字段名，该字段在整棵树中是唯一的。
-```html
-<@zjinh/vue-virtual-tree
-  :data="data"
-  show-checkbox
-  node-key="id"
-  :default-expanded-keys="[2, 3]"
-  :default-checked-keys="[5]"
-  :props="defaultProps">
-</@zjinh/vue-virtual-tree>
-
-<script>
-  export default {
-    data() {
-      return {
-        data: [{
-          id: 1,
-          label: '一级 1',
-          children: [{
-            id: 4,
-            label: '二级 1-1',
-            children: [{
-              id: 9,
-              label: '三级 1-1-1'
-            }, {
-              id: 10,
-              label: '三级 1-1-2'
-            }]
-          }]
-        }, {
-          id: 2,
-          label: '一级 2',
-          children: [{
-            id: 5,
-            label: '二级 2-1'
-          }, {
-            id: 6,
-            label: '二级 2-2'
-          }]
-        }, {
-          id: 3,
-          label: '一级 3',
-          children: [{
-            id: 7,
-            label: '二级 3-1'
-          }, {
-            id: 8,
-            label: '二级 3-2'
-          }]
-        }],
-        defaultProps: {
-          children: 'children',
-          label: 'label'
-        }
-      };
-    }
-  };
-</script>
-```
-
-
-## 禁用状态
-可将 Tree 的某些节点设置为禁用状态
-
-通过`disabled`设置禁用状态。
-```html
-<@zjinh/vue-virtual-tree
-  :data="data"
-  show-checkbox
-  node-key="id"
-  :default-expanded-keys="[2, 3]"
-  :default-checked-keys="[5]">
-</@zjinh/vue-virtual-tree>
-
-<script>
-  export default {
-    data() {
-      return {
-        data: [{
-          id: 1,
-          label: '一级 2',
-          children: [{
-            id: 3,
-            label: '二级 2-1',
-            children: [{
-              id: 4,
-              label: '三级 3-1-1'
-            }, {
-              id: 5,
-              label: '三级 3-1-2',
-              disabled: true
-            }]
-          }, {
-            id: 2,
-            label: '二级 2-2',
-            disabled: true,
-            children: [{
-              id: 6,
-              label: '三级 3-2-1'
-            }, {
-              id: 7,
-              label: '三级 3-2-2',
-              disabled: true
-            }]
-          }]
-        }],
-        defaultProps: {
-          children: 'children',
-          label: 'label'
-        }
-      };
-    }
-  };
-</script>
-```
-
-
-## 树节点的选择
-
-本例展示如何获取和设置选中节点。获取和设置各有两种方式：通过 node 或通过 key。如果需要通过 key 来获取或设置，则必须设置`node-key`。
-```html
-<@zjinh/vue-virtual-tree
-  :data="data"
-  show-checkbox
-  default-expand-all
-  node-key="id"
+```vue
+<VueVirtualTree
   ref="tree"
+  :data="data"
+  :height="320"
+  node-key="id"
+  show-checkbox
   highlight-current
-  :props="defaultProps">
-</@zjinh/vue-virtual-tree>
-
-<div class="buttons">
-  <el-button @click="getCheckedNodes">通过 node 获取</el-button>
-  <el-button @click="getCheckedKeys">通过 key 获取</el-button>
-  <el-button @click="setCheckedNodes">通过 node 设置</el-button>
-  <el-button @click="setCheckedKeys">通过 key 设置</el-button>
-  <el-button @click="resetChecked">清空</el-button>
-</div>
-
-<script>
-  export default {
-    methods: {
-      getCheckedNodes() {
-        console.log(this.$refs.tree.getCheckedNodes());
-      },
-      getCheckedKeys() {
-        console.log(this.$refs.tree.getCheckedKeys());
-      },
-      setCheckedNodes() {
-        this.$refs.tree.setCheckedNodes([{
-          id: 5,
-          label: '二级 2-1'
-        }, {
-          id: 9,
-          label: '三级 1-1-1'
-        }]);
-      },
-      setCheckedKeys() {
-        this.$refs.tree.setCheckedKeys([3]);
-      },
-      resetChecked() {
-        this.$refs.tree.setCheckedKeys([]);
-      }
-    },
-
-    data() {
-      return {
-        data: [{
-          id: 1,
-          label: '一级 1',
-          children: [{
-            id: 4,
-            label: '二级 1-1',
-            children: [{
-              id: 9,
-              label: '三级 1-1-1'
-            }, {
-              id: 10,
-              label: '三级 1-1-2'
-            }]
-          }]
-        }, {
-          id: 2,
-          label: '一级 2',
-          children: [{
-            id: 5,
-            label: '二级 2-1'
-          }, {
-            id: 6,
-            label: '二级 2-2'
-          }]
-        }, {
-          id: 3,
-          label: '一级 3',
-          children: [{
-            id: 7,
-            label: '二级 3-1'
-          }, {
-            id: 8,
-            label: '二级 3-2'
-          }]
-        }],
-        defaultProps: {
-          children: 'children',
-          label: 'label'
-        }
-      };
-    }
-  };
-</script>
+  :default-expanded-keys="[1]"
+  :default-checked-keys="[2]"
+  @check="onCheck"
+  @current-change="onCurrentChange"
+></VueVirtualTree>
 ```
 
+`highlightCurrent` only gates the `is-current` row styling. Clicking or setting a current node still updates current-node state when highlighting is off.
 
-## 自定义节点内容
-节点的内容支持自定义，可以在节点区添加按钮或图标等内容
+### Filtering
 
-可以通过两种方法进行树节点内容的自定义：`render-content`和 scoped slot。使用`render-content`指定渲染函数，该函数返回需要的节点区内容即可。渲染函数的用法请参考 Vue 文档。使用 scoped slot 会传入两个参数`node`和`data`，分别表示当前节点的 Node 对象和当前节点的数据。注意：由于 jsfiddle 不支持 JSX 语法，所以`render-content`示例在 jsfiddle 中无法运行。但是在实际的项目中，只要正确地配置了相关依赖，就可以正常运行。
-```html
-<div class="custom-tree-container">
-  <div class="block">
-    <p>使用 render-content</p>
-    <@zjinh/vue-virtual-tree
-      :data="data"
-      show-checkbox
-      node-key="id"
-      default-expand-all
-      :expand-on-click-node="false"
-      :render-content="renderContent">
-    </@zjinh/vue-virtual-tree>
-  </div>
-  <div class="block">
-    <p>使用 scoped slot</p>
-    <@zjinh/vue-virtual-tree
-      :data="data"
-      show-checkbox
-      node-key="id"
-      default-expand-all
-      :expand-on-click-node="false">
-      <span class="custom-tree-node" slot-scope="{ node, data }">
-        <span>{{ node.label }}</span>
-        <span>
-          <el-button
-            type="text"
-            size="mini"
-            @click="() => append(data)">
-            Append
-          </el-button>
-          <el-button
-            type="text"
-            size="mini"
-            @click="() => remove(node, data)">
-            Delete
-          </el-button>
-        </span>
-      </span>
-    </@zjinh/vue-virtual-tree>
-  </div>
-</div>
+`filter()` requires `filterNodeMethod`. The native input below has no UI-library dependency.
 
-<script>
-  let id = 1000;
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import type {
+  FilterFunction,
+  VueVirtualTreeInstance,
+} from '@zjinh/vue-virtual-tree'
 
-  export default {
-    data() {
-      const data = [{
-        id: 1,
-        label: '一级 1',
-        children: [{
-          id: 4,
-          label: '二级 1-1',
-          children: [{
-            id: 9,
-            label: '三级 1-1-1'
-          }, {
-            id: 10,
-            label: '三级 1-1-2'
-          }]
-        }]
-      }, {
-        id: 2,
-        label: '一级 2',
-        children: [{
-          id: 5,
-          label: '二级 2-1'
-        }, {
-          id: 6,
-          label: '二级 2-2'
-        }]
-      }, {
-        id: 3,
-        label: '一级 3',
-        children: [{
-          id: 7,
-          label: '二级 3-1'
-        }, {
-          id: 8,
-          label: '二级 3-2'
-        }]
-      }];
-      return {
-        data: JSON.parse(JSON.stringify(data)),
-        data: JSON.parse(JSON.stringify(data))
-      }
-    },
+const query = ref('')
+const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
+const filterNode: FilterFunction<DemoNode, string> = (value, data) =>
+  data.label.toLowerCase().includes(value.toLowerCase())
 
-    methods: {
-      append(data) {
-        const newChild = { id: id++, label: 'testtest', children: [] };
-        if (!data.children) {
-          this.$set(data, 'children', []);
-        }
-        data.children.push(newChild);
-      },
-
-      remove(node, data) {
-        const parent = node.parent;
-        const children = parent.data.children || parent.data;
-        const index = children.findIndex(d => d.id === data.id);
-        children.splice(index, 1);
-      },
-
-      renderContent(h, { node, data, store }) {
-        return (
-          <span class="custom-tree-node">
-            <span>{node.label}</span>
-            <span>
-              <el-button size="mini" type="text" on-click={ () => this.append(data) }>Append</el-button>
-              <el-button size="mini" type="text" on-click={ () => this.remove(node, data) }>Delete</el-button>
-            </span>
-          </span>);
-      }
-    }
-  };
+function applyFilter() {
+  tree.value?.filter(query.value)
+}
 </script>
 
-<style>
-  .custom-tree-node {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 14px;
-    padding-right: 8px;
+<template>
+  <input v-model="query" type="search" @input="applyFilter">
+  <VueVirtualTree
+    ref="tree"
+    :data="data"
+    :height="320"
+    node-key="id"
+    :filter-node-method="filterNode"
+  ></VueVirtualTree>
+</template>
+```
+
+### Lazy loading
+
+```vue
+<script setup lang="ts">
+import type { LoadFunction } from '@zjinh/vue-virtual-tree'
+
+const load: LoadFunction<DemoNode> = (node, resolve) => {
+  if (node.level === 0) {
+    resolve([{ id: 1, label: 'Lazy root' }])
+    return
   }
-</style>
-```
-
-
-## 节点过滤
-通过关键字过滤树节点
-
-在需要对节点进行过滤时，调用 Tree 实例的`filter`方法，参数为关键字。需要注意的是，此时需要设置`filter-node-method`，值为过滤函数。
-```html
-<el-input
-  placeholder="输入关键字进行过滤"
-  v-model="filterText">
-</el-input>
-
-<@zjinh/vue-virtual-tree
-  class="filter-tree"
-  :data="data"
-  :props="defaultProps"
-  default-expand-all
-  :filter-node-method="filterNode"
-  ref="tree">
-</@zjinh/vue-virtual-tree>
-
-<script>
-  export default {
-    watch: {
-      filterText(val) {
-        this.$refs.tree.filter(val);
-      }
-    },
-
-    methods: {
-      filterNode(value, data) {
-        if (!value) return true;
-        return data.label.indexOf(value) !== -1;
-      }
-    },
-
-    data() {
-      return {
-        filterText: '',
-        data: [{
-          id: 1,
-          label: '一级 1',
-          children: [{
-            id: 4,
-            label: '二级 1-1',
-            children: [{
-              id: 9,
-              label: '三级 1-1-1'
-            }, {
-              id: 10,
-              label: '三级 1-1-2'
-            }]
-          }]
-        }, {
-          id: 2,
-          label: '一级 2',
-          children: [{
-            id: 5,
-            label: '二级 2-1'
-          }, {
-            id: 6,
-            label: '二级 2-2'
-          }]
-        }, {
-          id: 3,
-          label: '一级 3',
-          children: [{
-            id: 7,
-            label: '二级 3-1'
-          }, {
-            id: 8,
-            label: '二级 3-2'
-          }]
-        }],
-        defaultProps: {
-          children: 'children',
-          label: 'label'
-        }
-      };
-    }
-  };
+  resolve(node.level < 2
+    ? [{ id: node.data.id + 10, label: `Child of ${node.data.label}` }]
+    : [])
+}
 </script>
+
+<template>
+  <VueVirtualTree
+    :height="320"
+    node-key="id"
+    lazy
+    :load="load"
+  ></VueVirtualTree>
+</template>
 ```
 
+When `lazy` is enabled, call `resolve()` with the child array. Map a boolean leaf field through `props.isLeaf` when the leaf state is known in advance.
 
-## 手风琴模式
+### Default scoped slot
 
-对于同一级的节点，每次只能展开一个
+The actual slot contract is `{ node, item, selectChange }`. `item` is the raw node data. This example aliases `item` to the local name `data` and uses the supplied checkbox callback:
 
-```html
-<@zjinh/vue-virtual-tree
+```vue
+<VueVirtualTree
   :data="data"
-  :props="defaultProps"
-  accordion
-  @node-click="handleNodeClick">
-</@zjinh/vue-virtual-tree>
-
-<script>
-  export default {
-    data() {
-      return {
-        data: [{
-          label: '一级 1',
-          children: [{
-            label: '二级 1-1',
-            children: [{
-              label: '三级 1-1-1'
-            }]
-          }]
-        }, {
-          label: '一级 2',
-          children: [{
-            label: '二级 2-1',
-            children: [{
-              label: '三级 2-1-1'
-            }]
-          }, {
-            label: '二级 2-2',
-            children: [{
-              label: '三级 2-2-1'
-            }]
-          }]
-        }, {
-          label: '一级 3',
-          children: [{
-            label: '二级 3-1',
-            children: [{
-              label: '三级 3-1-1'
-            }]
-          }, {
-            label: '二级 3-2',
-            children: [{
-              label: '三级 3-2-1'
-            }]
-          }]
-        }],
-        defaultProps: {
-          children: 'children',
-          label: 'label'
-        }
-      };
-    },
-    methods: {
-      handleNodeClick(data) {
-        console.log(data);
-      }
-    }
-  };
-</script>
+  :height="320"
+  node-key="id"
+  show-checkbox
+  :default-expanded-keys="[1]"
+>
+  <template #default="{ node, item: data, selectChange }">
+    <label :style="{ paddingLeft: `${(node.level - 1) * 18}px` }">
+      <input
+        type="checkbox"
+        :checked="node.checked"
+        :disabled="Boolean(node.disabled)"
+        @change="selectChange($event.target.checked)"
+      >
+      {{ data.label }}
+    </label>
+  </template>
+</VueVirtualTree>
 ```
 
-## Attributes
+Providing the default slot replaces the built-in row body, including its expansion affordance and built-in checkbox. Custom content owns the controls it needs.
 
-| 参数                    | 说明                                                                                  | 类型                                     | 可选值 | 默认值   |
-|----------------------|------------------------------------------------------------------------------------|---------------------------------------|----|------------------------------|
-| data                  | 展示数据                                                                                | array                                  | —   | —     |
-| empty-text            | 内容为空的时候展示的文本                                                                        | String                                 | —   | —     |
-| node-key              | 每个树节点用来作为唯一标识的属性，整棵树应该是唯一的                                                          | String                                 | —   | —     |
-| props                 | 配置选项，具体看下表                                                                          | object                                 | —   | —     |
-| load                  | 加载子树数据的方法，仅当 lazy 属性为 true 时生效                                                      | function(node, resolve)                | —   | —     |
-| render-content        | 树节点的内容区的渲染 Function                                                                 | Function(h, { node, data, store })     | —   | —     |
-| highlight-current     | 是否高亮当前选中节点，默认值是 false。                                                              | boolean                                | —   | false |
-| default-expand-all    | 是否默认展开所有节点                                                                          | boolean                                | —   | false |
-| expand-on-click-node  | 是否在点击节点的时候展开或者收缩节点，默认值为 true，如果为 false，则只有点箭头图标的时候才会展开或者收缩节点。                       | boolean                                | —   | true  |
-| check-on-click-node   | 是否在点击节点的时候选中节点，默认值为 false，即只有在点击复选框时才会选中节点。                                         | boolean                                | —   | false |
-| auto-expand-parent    | 展开子节点的时候是否自动展开父节点                                                                   | boolean                                | —   | true  |
-| default-expanded-keys | 默认展开的节点的 key 的数组                                                                    | array                                  | —   | —     |
-| show-checkbox         | 节点是否可被选择                                                                            | boolean                                | —   | false |
-| check-strictly        | 在显示复选框的情况下，是否严格的遵循父子不互相关联的做法，默认为 false                                              | boolean                                | —   | false |
-| default-checked-keys  | 默认勾选的节点的 key 的数组                                                                    | array                                  | —   | —     |
-| current-node-key      | 当前选中的节点                                                                             | string, number                         | —   | —     |
-| filter-node-method    | 对树节点进行筛选时执行的方法，返回 true 表示这个节点可以显示，返回 false 则表示这个节点会被隐藏                              | Function(value, data, node)            | —   | —     |
-| accordion             | 是否每次只打开一个同级树节点展开                                                                    | boolean                                | —   | false |
-| indent                | 相邻级节点间的水平缩进，单位为像素                                                                   | number                                 | —   | 16    |
-| item-size             | 每个节点的高度,单位为像素                                                                       | number                                 | —   | 26    |
-| icon-class            | 自定义树节点的图标                                                                           | string                                 | —   | —     |
-| lazy                  | 是否懒加载子节点，需与 load 方法结合使用                                                             | boolean                                | —   | false |
-| draggable             | 是否开启拖拽节点功能                                                                          | boolean                                | —   | false |
-| allow-drag            | 判断节点能否被拖拽                                                                           | Function(node)                         | —   | —     |
-| allow-drop            | 拖拽时判定目标节点能否被放置。`type` 参数有三种情况：'prev'、'inner' 和 'next'，分别表示放置在目标节点前、插入至目标节点和放置在目标节点后 | Function(draggingNode, dropNode, type) | —   | —     |
+### Calling methods through a ref
 
-## Props
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import type { VueVirtualTreeInstance } from '@zjinh/vue-virtual-tree'
 
-| 参数       | 说明                              | 类型                            | 可选值 | 默认值 |
-|-----------------------|-------------------------------------------------------------------------------------|----------------------------------------|-----|-------|
-| label    | 指定节点标签为节点对象的某个属性值               | string, function(data, node)  | —   | —   |
-| children | 指定子树为节点对象的某个属性值                 | string                        | —   | —   |
-| disabled | 指定节点选择框是否禁用为节点对象的某个属性值          | boolean, function(data, node) | —   | —   |
-| isLeaf   | 指定节点是否为叶子节点，仅在指定了 lazy 属性的情况下生效 | boolean, function(data, node) | —   | —   |
+const tree = ref<VueVirtualTreeInstance<DemoNode> | null>(null)
 
-## 方法
+function inspectSelection() {
+  console.log(tree.value?.getCheckedKeys())
+  console.log(tree.value?.getCurrentNode())
+}
 
-`Tree` 内部使用了 Node 类型的对象来包装用户传入的数据，用来保存目前节点的状态。`Tree` 拥有如下方法：
+function selectFirstChild() {
+  tree.value?.setChecked(2, true, true)
+  tree.value?.scrollToItem(2)
+}
+</script>
 
-| 方法名                 | 说明                                                          | 参数                                                                                                           |
-|-----------------------|-------------------------------------------------------------------------------------|----------------------------------------|
-| filter              | 对树节点进行筛选操作                                                  | 接收一个任意类型的参数，该参数会在 filter-node-method 中作为第一个参数                                                                |
-| updateKeyChildren   | 通过 keys 设置节点子元素，使用此方法必须设置 node-key 属性                       | (key, data) 接收两个参数，1. 节点 key 2. 节点数据的数组                                                                      |
-| getCheckedNodes     | 若节点可被选择（即 `show-checkbox` 为 `true`），则返回目前被选中的节点所组成的数组       | (leafOnly, includeHalfChecked) 接收两个 boolean 类型的参数，1. 是否只是叶子节点，默认值为 `false` 2. 是否包含半选节点，默认值为 `false`          |
-| setCheckedNodes     | 设置目前勾选的节点，使用此方法必须设置 node-key 属性                             | (nodes) 接收勾选节点数据的数组                                                                                          |
-| getCheckedKeys      | 若节点可被选择（即 `show-checkbox` 为 `true`），则返回目前被选中的节点的 key 所组成的数组 | (leafOnly) 接收一个 boolean 类型的参数，若为 `true` 则仅返回被选中的叶子节点的 keys，默认值为 `false`                                      |
-| setCheckedKeys      | 通过 keys 设置目前勾选的节点，使用此方法必须设置 node-key 属性                     | (keys, leafOnly) 接收两个参数，1. 勾选节点的 key 的数组 2. boolean 类型的参数，若为 `true` 则仅设置叶子节点的选中状态，默认值为 `false`               |
-| setCheckedAll       | 虚拟滚动时，快速全选或者清除全选的方法，使用setCheckedKeys可能会卡顿                   | (checked) 接收一个 boolean 类型的参数，若为 `true` 则全选所有节点，若为 `false` 则取消所有节点的选中/半选状态，默认值为 `false`                       |
-| setChecked          | 通过 key / data 设置某个节点的勾选状态，使用此方法必须设置 node-key 属性             | (key/data, checked, deep) 接收三个参数，1. 勾选节点的 key 或者 data 2. boolean 类型，节点是否选中  3. boolean 类型，是否设置子节点 ，默认为 false |
-| getHalfCheckedNodes | 若节点可被选择（即 `show-checkbox` 为 `true`），则返回目前半选中的节点所组成的数组       | -                                                                                                            |
-| getHalfCheckedKeys  | 若节点可被选择（即 `show-checkbox` 为 `true`），则返回目前半选中的节点的 key 所组成的数组 | -                                                                                                            |
-| getCurrentKey       | 获取当前被选中节点的 key，使用此方法必须设置 node-key 属性，若没有节点被选中则返回 null       | —                                                                                                            |
-| getCurrentNode      | 获取当前被选中节点的 data，若没有节点被选中则返回 null                            | —                                                                                                            |
-| setCurrentKey       | 通过 key 设置某个节点的当前选中状态，使用此方法必须设置 node-key 属性                  | (key) 待被选节点的 key，若为 null 则取消当前高亮的节点                                                                          |
-| setCurrentNode      | 通过 node 设置某个节点的当前选中状态，使用此方法必须设置 node-key 属性                 | (node) 待被选节点的 node                                                                                           |
-| getNode             | 根据 data 或者 key 拿到 Tree 组件中的 node                            | (data) 要获得 node 的 key 或者 data                                                                                |
-| remove              | 删除 Tree 中的一个节点，使用此方法必须设置 node-key 属性                        | (data) 要删除的节点的 data 或者 node                                                                                  |
-| append              | 为 Tree 中的一个节点追加一个子节点                                        | (data, parentNode) 接收两个参数，1. 要追加的子节点的 data 2. 子节点的 parent 的 data、key 或者 node                                 |
-| insertBefore        | 为 Tree 的一个节点的前面增加一个节点                                       | (data, refNode) 接收两个参数，1. 要增加的节点的 data 2. 要增加的节点的后一个节点的 data、key 或者 node                                     |
-| insertAfter         | 为 Tree 的一个节点的后面增加一个节点                                       | (data, refNode) 接收两个参数，1. 要增加的节点的 data 2. 要增加的节点的前一个节点的 data、key 或者 node                                     |
-| scrollToItem        | 滚动到指定node-key的节点，使节点处于可视化位置内                                | (id) 节点的 key                                                                                                 |
+<template>
+  <button type="button" @click="inspectSelection">Inspect selection</button>
+  <button type="button" @click="selectFirstChild">Select child</button>
+  <VueVirtualTree ref="tree" :data="data" :height="320" node-key="id"></VueVirtualTree>
+</template>
+```
 
-## 事件
+<!-- section:api -->
+## Public API
 
-| 事件名称             | 说明                  | 回调参数                                                                                                              |
-|---------------------|-------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| node-click       | 节点被点击时的回调           | 共三个参数，依次为：传递给 `data` 属性的数组中该节点所对应的对象、节点对应的 Node、节点组件本身。                                                           |
-| node-contextmenu | 当某一节点被鼠标右键点击时会触发该事件 | 共四个参数，依次为：event、传递给 `data` 属性的数组中该节点所对应的对象、节点对应的 Node、节点组件本身。                                                     |
-| check-change     | 节点选中状态发生变化时的回调      | 共三个参数，依次为：传递给 `data` 属性的数组中该节点所对应的对象、节点本身是否被选中、节点的子树中是否有被选中的节点                                                    |
-| check            | 当复选框被点击的时候触发        | 共两个参数，依次为：传递给 `data` 属性的数组中该节点所对应的对象、树目前的选中状态对象，包含 checkedNodes、checkedKeys、halfCheckedNodes、halfCheckedKeys 四个属性 |
-| current-change   | 当前选中节点变化时触发的事件      | 共两个参数，依次为：当前节点的数据，当前节点的 Node 对象                                                                                   |
-| node-expand      | 节点被展开时触发的事件         | 共三个参数，依次为：传递给 `data` 属性的数组中该节点所对应的对象、节点对应的 Node、节点组件本身                                                            |
-| node-collapse    | 节点被关闭时触发的事件         | 共三个参数，依次为：传递给 `data` 属性的数组中该节点所对应的对象、节点对应的 Node、节点组件本身                                                            |
+### Props
 
-## 插槽
+The supported prop set contains exactly 21 entries.
 
-默认插槽，自定义树节点的内容，参数为 `{ node, item }`
+| Prop | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `data` | `T[]` | `[]` | Tree data. |
+| `emptyText` | `string` | `暂无数据` | Text shown when no node is visible. |
+| `nodeKey` | `TreeNodeKey<T>` | not set | Unique string or number field. Read when the store initializes and required by the key-dependent methods noted below. |
+| `checkStrictly` | `boolean` | `false` | Stops parent and child checkbox propagation. |
+| `defaultExpandAll` | `boolean` | `false` | Expands nodes during initialization; remount to change this initialization option. |
+| `checkDescendants` | `boolean` | `false` | Initialization option controlling descendant checking around lazy loading. |
+| `selectChildrenOnly` | `boolean` | `false` | Initialization option adding leaf-selection behavior and leaf results to the `check` state. |
+| `itemSize` | `number` | `26` | Fixed row height in pixels; must be greater than zero. |
+| `autoExpandParent` | `boolean` | `true` | Initialization option that expands ancestors of default expanded keys. |
+| `defaultCheckedKeys` | `TreeKey[]` | `[]` | Initial checked keys; requires `nodeKey`. |
+| `defaultExpandedKeys` | `TreeKey[]` | `[]` | Initial expanded keys; requires `nodeKey`. |
+| `currentNodeKey` | `TreeKey` | not set | Initial current key; requires `nodeKey`. Use a method for later changes. |
+| `showCheckbox` | `boolean` | `false` | Renders built-in checkboxes when the default row content is used. |
+| `props` | `TreeOptionProps<T>` | label / children / disabled | Initialization mapping for `label`, `children`, `disabled`, `isLeaf`, or custom property getters. |
+| `lazy` | `boolean` | `false` | Initialization option enabling on-demand child loading. |
+| `highlightCurrent` | `boolean` | `false` | Gates current-row styling; it does not disable current state. |
+| `load` | `LoadFunction<T>` | not set | Initialization-time lazy loader used when `lazy` is true. |
+| `filterNodeMethod` | `FilterFunction<T, Value>` | not set | Predicate required before calling `filter()`; remount after replacing the function. |
+| `indent` | `number` | `18` | Indentation step in pixels for built-in rows. |
+| `iconClass` | `string` | not set | Custom class for the built-in expand icon. |
+| `height` | `string \| number` | `100%` | Virtual list height. Percentage values need a sized parent. |
+
+`renderContent` is retained only as an unsupported compatibility placeholder:
+
+| Prop | Type | Status | Replacement |
+| --- | --- | --- | --- |
+| `renderContent` | `never` | deprecated and unsupported | Use the default scoped slot. |
+
+No other component props are part of the public `VueVirtualTreeProps<T>` contract.
+
+### Methods
+
+All methods below are exposed on `VueVirtualTreeInstance<T>`.
+
+1. `filter<Value = unknown>(value: Value): void` applies `filterNodeMethod`. It throws when that prop is absent.
+2. `scrollToItem(key: TreeKey, levelStepPadding?: number, animation?: boolean): void` schedules scrolling to a currently flattened visible item. The optional values default to `18` and `false`. Matching requires `nodeKey`; the method returns before its internal asynchronous positioning finishes.
+3. `getNodePath(data: TreeNodeReference<T>): T[]` returns root-to-node raw data, returns `[]` for an unknown reference, and throws when `nodeKey` is absent.
+4. `getCheckedNodes(leafOnly?: boolean, includeHalfChecked?: boolean): T[]` returns checked data. Both flags default to `false`.
+5. `getCheckedKeys(leafOnly?: boolean): Array<TreeKey | undefined>` maps checked data through `nodeKey`; without a configured key an entry can be `undefined`.
+6. `getCurrentNode(): T | null` returns current raw data or `null`.
+7. `getCurrentKey(): TreeKey | null` returns the current key or `null` and throws when `nodeKey` is absent.
+8. `setCheckedNodes(nodes: T[], leafOnly?: boolean): void` replaces checkbox selection from raw data and requires `nodeKey`.
+9. `setCheckedKeys(keys: TreeKey[], leafOnly?: boolean): void` replaces checkbox selection from keys and requires `nodeKey`.
+10. `setChecked(data: TreeNodeReference<T>, checked: boolean, deep?: boolean): void` changes one resolved node; an unknown reference is ignored.
+11. `setCheckedAll(checked?: boolean): void` changes all registered nodes; `checked` defaults to `true`.
+12. `getHalfCheckedNodes(): T[]` returns indeterminate-node data.
+13. `getHalfCheckedKeys(): Array<TreeKey | undefined>` returns indeterminate-node keys.
+14. `getSelectedLeafNodes(): T[]` returns selected leaf data. Outside `selectChildrenOnly` mode it is equivalent to checked leaf nodes.
+15. `getSelectedLeafKeys(): Array<TreeKey | undefined>` returns selected leaf keys.
+16. `setCurrentNode(node: T): void` makes existing raw data current and requires `nodeKey`; pass data already present in the tree.
+17. `setCurrentKey(key: TreeKey | null): void` sets an existing key current or clears current state with `null`; it requires `nodeKey`.
+18. `getNode(data: TreeNodeReference<T>): Node<T> | null` resolves a key, raw data object, or `Node<T>` and returns `null` when unresolved.
+19. `remove(data: TreeNodeReference<T>): void` removes a resolved node; an unknown reference is ignored.
+20. `append(data: T, parentNode?: TreeNodeReference<T> | null): void` appends under a resolved parent, or under the virtual root when the parent is omitted.
+21. `insertBefore(data: T, refNode: TreeNodeReference<T>): void` inserts next to an existing reference; the reference must resolve.
+22. `insertAfter(data: T, refNode: TreeNodeReference<T>): void` inserts next to an existing reference; the reference must resolve.
+23. `updateKeyChildren(key: TreeKey, data: T[]): void` replaces the direct children of an existing key, requires `nodeKey`, and ignores an unknown key.
+
+Methods that mutate structure also mutate the corresponding `children` array in the supplied data objects.
+
+### Events
+
+| Event | Payload | Notes |
+| --- | --- | --- |
+| `node-click` | `data, node, instance` | A row was clicked. |
+| `node-expand` | `data, node, instance` | The built-in expand control expanded a node. |
+| `node-collapse` | `data, node, instance` | The built-in expand control collapsed a node. |
+| `node-contextmenu` | `event, data, node, instance` | Native `MouseEvent` first. |
+| `current-change` | `data, node` | Both values are nullable in the public event type. |
+| `check-change` | `data, checked, indeterminate` | Emitted when a node's checkbox state changes. |
+| `check` | `data, state` | `state` is `VueVirtualTreeCheckState<T>`. |
+
+`VueVirtualTreeCheckState<T>` contains `checkedNodes`, `checkedKeys`, `halfCheckedNodes`, and `halfCheckedKeys`. It can also contain `selectedLeafNodes` and `selectedLeafKeys` when `selectChildrenOnly` is enabled.
+
+### Default slot
+
+The default slot receives `{ node, item, selectChange }` as `VueVirtualTreeDefaultSlotProps<T>`:
+
+| Value | Type | Meaning |
+| --- | --- | --- |
+| `node` | `Node<T>` | Tree model wrapper and state. |
+| `item` | `T` | Raw node data. |
+| `selectChange` | `(checked: boolean) => void` | Sends a checkbox change through the tree. |
+
+### Key exported types
+
+```ts
+import type {
+  FilterFunction,
+  LoadFunction,
+  Node,
+  TreeKey,
+  TreeNodeData,
+  TreeNodeReference,
+  TreeOptionProps,
+  VueVirtualTreeCheckState,
+  VueVirtualTreeDefaultSlotProps,
+  VueVirtualTreeEventMap,
+  VueVirtualTreeInstance,
+  VueVirtualTreeProps,
+} from '@zjinh/vue-virtual-tree'
+```
+
+- `TreeKey` is `string | number`.
+- `TreeNodeData` is `object`.
+- `TreeNodeReference<T>` is `TreeKey | T | Node<T>`.
+- `TreeOptionProps<T>` maps children, label, disabled, leaf, and custom properties to typed fields or getter functions.
+- `LoadFunction<T>` is `(node: Node<T>, resolve: (data: T[]) => void) => void`.
+- `FilterFunction<T, Value>` is `(value: Value, data: T, node: Node<T>) => boolean`.
+- `Node<T>` is the public model-node interface. `Node` and `TreeStore` constructors are also named runtime exports.
+- `VueVirtualTreeCheckState<T>` describes the `check` event state.
+- `VueVirtualTreeDefaultSlotProps<T>` describes `{ node, item, selectChange }`.
+- `VueVirtualTreeEventMap<T>` maps the seven public event names to their tuples.
+- `VueVirtualTreeProps<T>` and `VueVirtualTreeInstance<T>` are the component prop and ref contracts.
+
+<!-- section:limitations -->
+## Limits and compatibility boundaries
+
+- Vue 2 support is limited to Vue 2.7.x. Earlier Vue 2 releases are outside the peer and build contract.
+- The published package is ESM only. Consumers need an ESM-aware bundler or runtime.
+- Virtualization assumes a positive fixed row size. Variable row heights, wrapping content, or a zero-height container can produce incorrect ranges.
+- Modern browsers must provide ESM, `ResizeObserver`, and `requestAnimationFrame`. There is no separately tested legacy-browser build.
+- Virtualization reduces rendered DOM rows, not the full model-data cost. Filtering, bulk checking, and other tree-wide operations can still scale with logical node count.
+- Lazy loading expects the application loader to call `resolve(T[])`. Loading policy, retries, cancellation, and server errors remain application concerns.
+- `renderContent` is deprecated and unsupported even though a runtime compatibility prop remains. Use the default scoped slot.
+
+Workbench durations, frame samples, rendered-row counts, and virtualization ratios are real-time measurements from the current browser, hardware, data, and interaction. They are diagnostics, not fixed performance promises. JS heap reporting uses the optional Chromium `performance.memory` API; other browsers can show it as unavailable.
+
+<!-- section:development -->
+## Development and quality gates
+
+Use the pinned toolchain:
+
+```sh
+node --version  # v22.22.3
+pnpm --version  # 10.33.4
+pnpm install --frozen-lockfile
+```
+
+| Command | What it proves |
+| --- | --- |
+| `pnpm run build` | Builds Vue 2 and Vue 3 ESM entries, shared CSS, and declarations into `dist`. |
+| `pnpm test` | Runs package and source tests, model and component suites for both runtimes, type checks, the build, built artifacts checks, type consumers, and demo checks. |
+| `pnpm run publish:check` | Runs the release checks plus `publint`, builds `.release/package.tgz`, installs the tarball into isolated Vue 2.7 consumer and Vue 3 consumer projects, and runs Are the Types Wrong. |
+| `pnpm run ci:check` | Runs `publish:check` and then the GitHub Pages build and contract. |
+| `pnpm run test:pages` | Builds `_site` and tests the Pages launcher and both runtime assets. It does not deploy them. |
+| `pnpm run dev:vue2` | Builds the package and starts the Vue 2.7 Workbench locally. |
+| `pnpm run dev:vue3` | Builds the package and starts the Vue 3 Workbench locally. |
+
+These gates have separate evidence boundaries: source tests cover source behavior, built artifacts checks cover `dist`, the tarball contract covers the exact packed files and two isolated consumers, Are the Types Wrong checks package type resolution, `publint` checks package metadata and artifacts, and Pages tests cover the static site assembly. A green local command is not proof that npm publication or a Pages deployment happened.
+
+<!-- section:release -->
+## Publishing and Pages operations
+
+### First npm publication
+
+If the package does not yet exist on npm, bootstrap it manually from a clean checkout with Node.js 22.22.3 and pnpm 10.33.4:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm run publish:check
+npm publish .release/package.tgz --access public
+```
+
+`publish:check` creates and validates `.release/package.tgz`. The final command requires an npm account with publish permission for the scope and any required 2FA. Do not publish the working directory in place of the verified tarball.
+
+### Trusted Publisher releases
+
+After the npm package exists, configure an npmjs [Trusted Publisher](https://docs.npmjs.com/trusted-publishers/) with:
+
+- repository owner: `zjinh`
+- repository: `vue-virtual-tree`
+- workflow filename: `publish.yml`
+
+The workflow accepts a stable published GitHub Release only when its tag is exactly `v<package.version>`. A prerelease does not publish. GitHub Actions exchanges OIDC identity with npm, so the workflow has no `NPM_TOKEN`; npm provenance is attached automatically by trusted publishing.
+
+### GitHub Pages
+
+In repository **Settings**, set Pages source to **GitHub Actions**. The Pages workflow builds and tests the Workbench plus the Vue 2.7 and Vue 3 apps before deployment.
+
+<!-- section:license -->
+## License
+
+[MIT](./LICENSE)

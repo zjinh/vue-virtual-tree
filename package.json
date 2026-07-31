@@ -31,6 +31,7 @@
   "files": [
     "dist",
     "README.md",
+    "README.zh-CN.md",
     "LICENSE"
   ],
   "sideEffects": [
@@ -62,7 +63,7 @@
     "test:demos": "pnpm run build && pnpm run test:demos:check",
     "test:pages": "pnpm run build:pages && node --test tests/pages-contract.test.mjs",
     "test": "pnpm run test:package && pnpm run test:model && pnpm run test:components && pnpm run typecheck && pnpm run typecheck:sfc && pnpm run build && pnpm run test:artifacts && pnpm run test:types && pnpm run test:demos:check",
-    "test:package": "node --test tests/package-contract.test.mjs tests/demo-contract.test.mjs tests/npm-environment.test.mjs tests/release-contract.test.mjs tests/release-policy.test.mjs tests/workflow-contract.test.mjs",
+    "test:package": "node --test tests/package-contract.test.mjs tests/readme-contract.test.mjs tests/demo-contract.test.mjs tests/npm-environment.test.mjs tests/release-contract.test.mjs tests/release-policy.test.mjs tests/workflow-contract.test.mjs",
     "test:model": "vitest run tests/model",
     "test:component:vue2": "vitest run --config vitest.component.vue2.config.ts",
     "test:component:vue3": "vitest run --config vitest.component.vue3.config.ts",

@@ -74,7 +74,12 @@ test('publishes Vue 3 by default and explicit Vue 2 and Vue 3 subpaths', () => {
 
 test('declares the consumer and publication boundaries', () => {
   assert.equal(packageJson.peerDependencies.vue, '^2.7.0 || ^3.2.0')
-  assert.deepEqual(packageJson.files, ['dist', 'README.md', 'LICENSE'])
+  assert.deepEqual(packageJson.files, [
+    'dist',
+    'README.md',
+    'README.zh-CN.md',
+    'LICENSE',
+  ])
   assert.deepEqual(packageJson.sideEffects, ['**/*.css'])
   assert.equal(packageJson.publishConfig.access, 'public')
 })
