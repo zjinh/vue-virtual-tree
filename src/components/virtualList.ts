@@ -1,86 +1,97 @@
-import "./virtualList.less"
-import {
-  h,
-  version,
-  ref,
-  computed,
-  onMounted,
-  onBeforeUnmount,
-  onActivated,
-  onDeactivated,
-  onUpdated,
-  nextTick,
-  watch
-} from 'vue'
-import type { ComputedRef, Ref, SetupContext } from 'vue'
+import './virtualList.less'
 
-// 定高虚拟列表不再需要PosData接口
+import {
+  computed,
+  defineComponent,
+  h,
+  nextTick,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  onUpdated,
+  ref,
+  version,
+  watch,
+} from 'vue'
+import type { ComputedRef, PropType, Ref } from 'vue'
+
 interface ScrollData {
-  start: number;
-  end: number;
-  startOffset: number;
-  scrollTop: number;
-  direction: string;
+  start: number
+  end: number
+  startOffset: number
+  scrollTop: number
+  direction: 'down' | 'up'
 }
-const _ = {
-  debounce(func: Function, wait = 50, immediate = false) {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let result: any = null;
-    return function (...args: any) {
-      if (timer) {
-        clearTimeout(timer);
-      }
-      if (immediate) {
-        let callNow = !timer;
-        timer = setTimeout(() => {
-          timer = null;
-        }, wait);
-        if (callNow) {
-          result = func(...args);
-        }
-      } else {
-        timer = setTimeout(() => {
-          func(...args);
-        }, wait);
-      }
-      return result;
-    };
-  },
-};
-const isVue2 = version.startsWith('2');
-let scrollTopCache = 0;
-let haveScrollWidth = false;
-const renderHelper = function (attrs?: { [key: string]: string }, listen?: { [key: string]: Function | Array<Function> }): any {
+
+interface IndexedListItem {
+  index: number
+  item: unknown
+}
+
+type ScrollEvent = Event | { target: HTMLElement }
+type RenderAttributes = Record<string, string | number>
+type RenderListeners = Record<string, (event: Event) => void>
+
+const debounce = <Args extends unknown[], Result>(
+  callback: (...args: Args) => Result,
+  wait = 50,
+  immediate = false,
+): ((...args: Args) => Result | undefined) => {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let result: Result | undefined
+
+  return (...args: Args): Result | undefined => {
+    if (timer) clearTimeout(timer)
+    if (immediate) {
+      const callNow = !timer
+      timer = setTimeout(() => {
+        timer = null
+      }, wait)
+      if (callNow) result = callback(...args)
+    } else {
+      timer = setTimeout(() => {
+        callback(...args)
+      }, wait)
+    }
+    return result
+  }
+}
+
+const isVue2 = version.startsWith('2')
+let scrollTopCache = 0
+let haveScrollWidth = false
+
+const renderHelper = (
+  attrs: RenderAttributes = {},
+  listeners: RenderListeners = {},
+): Record<string, unknown> => {
   if (isVue2) {
     return {
-      attrs: attrs,
-      on: listen,
-    };
-  } else {
-    let obj: any = attrs;
-    for (let key in listen) {
-      obj[`on${key.charAt(0).toUpperCase() + key.slice(1)}`] = listen[key];
+      attrs,
+      on: listeners,
     }
-    return obj;
   }
-};
-export default {
+
+  const result: Record<string, unknown> = { ...attrs }
+  for (const [event, listener] of Object.entries(listeners)) {
+    result[`on${event.charAt(0).toUpperCase()}${event.slice(1)}`] = listener
+  }
+  return result
+}
+
+export default defineComponent({
   name: 'virtualList',
   props: {
-    //所有列表数据
     listData: {
-      type: Array,
+      type: Array as PropType<unknown[]>,
       required: true,
-      default: function () {
-        return [];
-      },
+      default: () => [],
     },
-    //预估高度
     itemHeight: {
       type: Number,
       required: true,
     },
-    //缓冲区比例
     bufferScale: {
       type: Number,
       default: 4,
@@ -89,400 +100,329 @@ export default {
       type: Number,
       default: 10,
     },
-    //容器高度 100%
     height: {
-      type: String,
+      type: [String, Number] as PropType<string | number>,
       default: '100%',
     },
     scrollLockTime: {
       type: Number,
-      default: function () {
-        return 100;
-      },
+      default: 100,
     },
   },
-  setup(props: any, { slots, emit, expose }: SetupContext) {
-    // refs
-    const virtualList: Ref<HTMLElement | null> = ref(null);
-    const phantom: Ref<HTMLElement | null> = ref(null);
-    const content: Ref<HTMLElement | null> = ref(null);
-    //data
-    const screenHeight = ref(0);
-    const start = ref(0);
-    const end = ref(0);
-    const startOffset = ref(0);
-    const lockScroll = ref(false);
-    const lockTimer: Ref<ReturnType<typeof setTimeout> | null> = ref(null);
-    const oldScrollTop = ref(0);
-    const preventAutoScroll = ref(false);
-    const lastDirection = ref('');
-    const ready = ref(false);
-    const active = ref(true);
-    let resizer: ResizeObserver | null = null;
+  setup(props, { slots, emit, expose }) {
+    const virtualList: Ref<HTMLElement | null> = ref(null)
+    const phantom: Ref<HTMLElement | null> = ref(null)
+    const content: Ref<HTMLElement | null> = ref(null)
+    const screenHeight = ref(0)
+    const start = ref(0)
+    const end = ref(0)
+    const startOffset = ref(0)
+    const lockScroll = ref(false)
+    const lockTimer: Ref<ReturnType<typeof setTimeout> | null> = ref(null)
+    const oldScrollTop = ref(0)
+    const preventAutoScroll = ref(false)
+    const lastDirection = ref<ScrollData['direction'] | ''>('')
+    const ready = ref(false)
+    const active = ref(true)
+    let resizer: ResizeObserver | null = null
 
-    // 生命周期钩子
-    onMounted(() => {
-      nextTick(() => {
-        ready.value = true;
-        startRender();
-        if (!screenHeight.value) {
-          let a = setTimeout(() => {
-            startRender();
-            clearTimeout(a);
-          }, 100);
-        }
-      });
-
-      if (elm.value) {
-        resizer = new ResizeObserver(_.debounce(handleResize, 100));
-        resizer.observe(elm.value);
-      }
-    });
-
-    onBeforeUnmount(() => {
-      scrollTopCache = 0;
-
-      if (resizer) {
-        resizer.disconnect();
-        resizer = null;
-      }
-
-      if (lockTimer.value) {
-        clearTimeout(lockTimer.value);
-        lockTimer.value = null;
-      }
-    });
-
-    onActivated(() => {
-      if (content.value && elm.value) {
-        elm.value.scrollTop = scrollTopCache;
-        // 计算总高度：项目数量 * 单项高度
-        let totalHeight = _listData.value.length * props.itemHeight;
-        updatePhantomStyle(totalHeight + 'px');
-        content.value.style.transform = `translate3d(0,${startOffset.value}px,0)`;
-      }
-      active.value = true;
-    });
-
-    onDeactivated(() => {
-      active.value = false;
-    });
-
-    onUpdated(() => {
-      if (!active.value) {
-        return;
-      }
-      // 数据长度变化时重新渲染
-      unlockScroll();
-      afterRenderUpdated();
-    });
-
-    // computed
-    const elm: ComputedRef<HTMLElement> = computed(() => {
-      return virtualList.value as HTMLElement;
-    });
-
-    const _listData = computed(() => {
-      if (!ready.value) return [];
-      return props.listData.reduce((acc: any, cur: any, index: number) => {
-        // 创建新对象，避免副作用
-        cur._index = index;
-        acc.push(cur);
-        return acc;
-      }, []);
-    });
-
-    // 计算当前起始项的位置信息
+    const elm: ComputedRef<HTMLElement | null> = computed(() => virtualList.value)
+    const indexedListData = computed<IndexedListItem[]>(() => {
+      if (!ready.value) return []
+      return props.listData.map((item, index) => ({ index, item }))
+    })
     const anchorPoint = computed(() => {
-      if (_listData.value.length === 0) return null;
+      if (indexedListData.value.length === 0) return null
       return {
         top: start.value * props.itemHeight,
         bottom: (start.value + 1) * props.itemHeight,
-      };
-    });
-
-    const visibleCount = computed(() => Math.ceil(screenHeight.value / props.itemHeight));
-
-    const aboveCount = computed(() => Math.min(start.value, props.bufferScale * visibleCount.value));
-
-    const belowCount = computed(() => Math.min(props.listData.length - end.value, props.bufferScale * visibleCount.value));
-
+      }
+    })
+    const visibleCount = computed(() =>
+      Math.ceil(screenHeight.value / props.itemHeight),
+    )
+    const aboveCount = computed(() =>
+      Math.min(start.value, props.bufferScale * visibleCount.value),
+    )
+    const belowCount = computed(() =>
+      Math.min(
+        props.listData.length - end.value,
+        props.bufferScale * visibleCount.value,
+      ),
+    )
     const renderListData = computed(() => {
-      let startIndex = start.value - Math.max(0, aboveCount.value);
-      let endIndex = end.value + Math.max(1, belowCount.value);
-      return _listData.value.slice(startIndex, endIndex);
-    });
+      const startIndex = start.value - Math.max(0, aboveCount.value)
+      const endIndex = end.value + Math.max(1, belowCount.value)
+      return indexedListData.value.slice(startIndex, endIndex)
+    })
+    const listHeight = computed(() => ({ height: props.height }))
 
-    const listHeight = computed(() => ({
-      height: props.height,
-    }));
+    const updatePhantomStyle = (height: string): void => {
+      if (phantom.value) phantom.value.style.height = height
+    }
 
-    watch(listHeight, () => {
-      handleResize();
-    });
+    const getScrollHeight = (): number => phantom.value?.offsetHeight ?? 0
 
-    // methods
-    const startRender = () => {
-      getSizeInfo();
-      start.value = 0;
-      end.value = start.value + visibleCount.value;
-      setStartOffset();
-    };
-    const hasHorizontalScrollbar = (element: HTMLElement) => {
-      const style = window.getComputedStyle(element);
-      const overflowX = style.overflowX;
-      return overflowX === 'scroll' || (overflowX === 'auto' && element.scrollWidth > element.clientWidth);
-    };
-    const handleResize = () => {
-      if (!active.value || !elm.value?.offsetHeight) {
-        preventAutoScroll.value = false;
-        return;
-      }
-      let scrollWidthExist = hasHorizontalScrollbar(elm.value);
-      if (haveScrollWidth === scrollWidthExist) {
-        return;
-      }
-      haveScrollWidth = scrollWidthExist;
-      getSizeInfo();
-      nextTick(() => {
-        scrollEvent(
-          {
-            target: elm.value,
-          },
-          true
-        );
-      });
-    };
-
-    const getSizeInfo = () => {
-      if (!elm.value) {
-        return;
-      }
-
+    const getSizeInfo = (): void => {
+      const element = elm.value
+      if (!element) return
       try {
-        let height = Math.max(elm.value.clientHeight, -1);
-        //@ts-ignore
-        screenHeight.value = height > 0 ? height : elm.value.parentNode ? elm.value.parentNode.clientHeight : 0;
-      } catch (_e) {
-        screenHeight.value = 0;
+        const height = Math.max(element.clientHeight, -1)
+        screenHeight.value = height > 0
+          ? height
+          : (element.parentElement?.clientHeight ?? 0)
+      } catch (_error) {
+        screenHeight.value = 0
       }
-    };
-    //数据变更渲染后重新计算
-    const afterRenderUpdated = () => {
-      let data = props.listData;
-      if (!data || !data.length) {
-        updatePhantomStyle('0px');
-        return;
-      }
-      // 计算总高度：项目数量 * 单项高度
-      let totalHeight = data.length * props.itemHeight;
-      updatePhantomStyle(totalHeight + 'px');
-      //更新真实偏移量
-      setStartOffset();
-    };
-    //防抖处理，设置滚动状态
-    const scrollEnd = _.debounce((event: MouseEvent, data: ScrollData) => {
-      if (active.value) {
-        emit('scrollEnd', event, data);
-      }
-    }, 100);
+    }
 
-    const scrollingEvent = (event: MouseEvent, data: ScrollData) => {
-      oldScrollTop.value = data.scrollTop;
-      if (active.value) {
-        emit('scrolling', event, data);
-      }
-    };
-
-    // 定高虚拟列表：直接通过数学计算获取起始索引
-    const getStartIndex = (scrollTop = 0) => {
-      return Math.max(Math.floor(scrollTop / props.itemHeight), 0);
-    };
-
-    const setStartOffset = () => {
-      let offset = 0;
+    const setStartOffset = (): void => {
+      let offset = 0
       try {
         if (start.value >= 1) {
-          // 定高虚拟列表：计算实际渲染起始位置的偏移
-          let actualStart = Math.max(0, start.value - aboveCount.value);
-          offset = actualStart * props.itemHeight;
+          const actualStart = Math.max(0, start.value - aboveCount.value)
+          offset = actualStart * props.itemHeight
         }
-      } catch (_e) {
-        offset = 0;
+      } catch (_error) {
+        offset = 0
       }
-      startOffset.value = offset;
+      startOffset.value = offset
       if (content.value) {
-        content.value.style.transform = `translate3d(0,${offset}px,0)`;
+        content.value.style.transform = `translate3d(0,${offset}px,0)`
       }
-    };
+    }
 
-    const getScrollHeight = () => {
-      return phantom.value?.offsetHeight || 0;
-    };
+    const getStartIndex = (scrollTop = 0): number =>
+      Math.max(Math.floor(scrollTop / props.itemHeight), 0)
 
-    const scrollEvent = (e: any, force = false) => {
-      if (!e?.target) return;
+    const unlockScroll = (): void => {
+      if (!props.scrollLockTime) {
+        lockScroll.value = false
+        preventAutoScroll.value = false
+        return
+      }
+      if (lockTimer.value) clearTimeout(lockTimer.value)
+      lockTimer.value = setTimeout(() => {
+        lockScroll.value = false
+        preventAutoScroll.value = false
+        if (lockTimer.value) clearTimeout(lockTimer.value)
+        lockTimer.value = null
+      }, props.scrollLockTime)
+    }
 
-      let element = e.target;
-      let scrollTop = element.scrollTop;
+    const scrollDownEvent = debounce((scrollHeight: number): void => {
+      if (scrollHeight === getScrollHeight()) emit('scrollDown')
+    }, 100)
 
-      if (scrollTopCache !== scrollTop && active.value) {
-        emit('scroll', e);
+    const scrollEnd = debounce((event: ScrollEvent, data: ScrollData): void => {
+      if (active.value) emit('scrollEnd', event, data)
+    }, 100)
+
+    const scrollingEvent = (event: ScrollEvent, data: ScrollData): void => {
+      oldScrollTop.value = data.scrollTop
+      if (active.value) emit('scrolling', event, data)
+    }
+
+    const scrollEvent = (event: ScrollEvent, force = false): void => {
+      const element = event.target instanceof HTMLElement ? event.target : null
+      if (!element) return
+
+      const scrollTop = element.scrollTop
+      if (scrollTopCache !== scrollTop && active.value) emit('scroll', event)
+      scrollTopCache = scrollTop
+
+      const scrollHeight = getScrollHeight()
+      if (
+        force ||
+        !anchorPoint.value ||
+        scrollTop > anchorPoint.value.bottom ||
+        scrollTop < anchorPoint.value.top
+      ) {
+        start.value = getStartIndex(scrollTop)
+        end.value = start.value + visibleCount.value
+        setStartOffset()
       }
 
-      scrollTopCache = scrollTop;
-      let scrollHeight = getScrollHeight();
-
-      if (force || !anchorPoint.value || scrollTop > anchorPoint.value.bottom || scrollTop < anchorPoint.value.top) {
-        start.value = getStartIndex(scrollTop);
-        end.value = start.value + visibleCount.value;
-        setStartOffset();
-      }
-
-      //触发外部滚动事件
-      let direction = scrollTop - oldScrollTop.value >= 0 ? 'down' : 'up';
-      let data: ScrollData = {
+      const direction: ScrollData['direction'] =
+        scrollTop - oldScrollTop.value >= 0 ? 'down' : 'up'
+      const data: ScrollData = {
         start: start.value,
         end: Math.min(end.value, props.listData.length - 1),
         startOffset: startOffset.value,
         scrollTop,
         direction,
-      };
-
-      if (oldScrollTop.value && lastDirection.value && lastDirection.value !== direction) {
-        preventAutoScroll.value = true;
-        unlockScroll();
       }
 
-      lastDirection.value = direction;
-      scrollingEvent(e, data);
-      scrollEnd(e, data);
-
-      if (scrollHeight <= element.clientHeight) return;
-      if (lockScroll.value) return;
-
-      if (scrollHeight - scrollTop - props.scrollEndDistance <= element.clientHeight && direction === 'down') {
-        lockScroll.value = true;
-        scrollDownEvent(scrollHeight);
-        unlockScroll();
+      if (
+        oldScrollTop.value &&
+        lastDirection.value &&
+        lastDirection.value !== direction
+      ) {
+        preventAutoScroll.value = true
+        unlockScroll()
       }
-    };
+      lastDirection.value = direction
+      scrollingEvent(event, data)
+      scrollEnd(event, data)
 
-    const scrollDownEvent = _.debounce((scrollHeight: number) => {
-      if (scrollHeight === getScrollHeight()) {
-        emit('scrollDown');
+      if (scrollHeight <= element.clientHeight || lockScroll.value) return
+      if (
+        scrollHeight - scrollTop - props.scrollEndDistance <= element.clientHeight &&
+        direction === 'down'
+      ) {
+        lockScroll.value = true
+        scrollDownEvent(scrollHeight)
+        unlockScroll()
       }
-    }, 100);
+    }
 
-    const unlockScroll = () => {
-      if (!props.scrollLockTime) {
-        lockScroll.value = false;
-        preventAutoScroll.value = false;
-        return;
+    const startRender = (): void => {
+      getSizeInfo()
+      start.value = 0
+      end.value = visibleCount.value
+      setStartOffset()
+    }
+
+    const hasHorizontalScrollbar = (element: HTMLElement): boolean => {
+      const { overflowX } = window.getComputedStyle(element)
+      return overflowX === 'scroll' || (
+        overflowX === 'auto' && element.scrollWidth > element.clientWidth
+      )
+    }
+
+    const handleResize = (): void => {
+      const element = elm.value
+      if (!active.value || !element?.offsetHeight) {
+        preventAutoScroll.value = false
+        return
       }
+      const scrollWidthExists = hasHorizontalScrollbar(element)
+      if (haveScrollWidth === scrollWidthExists) return
+      haveScrollWidth = scrollWidthExists
+      getSizeInfo()
+      void nextTick(() => scrollEvent({ target: element }, true))
+    }
 
-      if (lockTimer.value) {
-        clearTimeout(lockTimer.value);
-        lockTimer.value = null;
+    const afterRenderUpdated = (): void => {
+      if (props.listData.length === 0) {
+        updatePhantomStyle('0px')
+        return
       }
+      updatePhantomStyle(`${props.listData.length * props.itemHeight}px`)
+      setStartOffset()
+    }
 
-      lockTimer.value = setTimeout(() => {
-        lockScroll.value = false;
-        preventAutoScroll.value = false;
-        if (lockTimer.value) {
-          clearTimeout(lockTimer.value);
-          lockTimer.value = null;
-        }
-      }, props.scrollLockTime);
-    };
+    const scrollToIndex = async (
+      index = 0,
+      animation = true,
+      first = true,
+    ): Promise<void> => {
+      if (index < 0 || preventAutoScroll.value) return
+      if (first) await nextTick()
 
-    const scrollToIndex = async (index = 0, anim = true, first = true) => {
-      if (index < 0 || preventAutoScroll.value) return;
-
-      if (first) {
-        await nextTick();
-      }
-
-      let listIndex: number;
-      let scrollTop = 0;
-      let currentScrollHeight = getScrollHeight();
-
-      listIndex = Math.min(index, _listData.value.length - 1);
-
-      try {
-        // 定高虚拟列表：直接计算scrollTop位置
-        scrollTop = listIndex * props.itemHeight;
-        scrollTop = Math.floor(scrollTop);
-      } catch (_e) {
-        scrollTop = 0;
-      }
+      const element = elm.value
+      if (!element) return
+      const listIndex = Math.min(index, indexedListData.value.length - 1)
+      let scrollTop = Math.floor(listIndex * props.itemHeight)
+      const currentScrollHeight = getScrollHeight()
 
       if (scrollTop === 0) {
-        elm.value.scrollTo({
+        element.scrollTo({
           left: 0,
           top: scrollTop,
-          behavior: anim ? 'smooth' : 'auto',
-        });
-        return;
+          behavior: animation ? 'smooth' : 'auto',
+        })
+        return
       }
 
-      // 只有目标项已经在当前视口内，才 return，否则继续执行滚动
-      const currentTop = elm.value.scrollTop;
-      const viewBottom = currentTop + elm.value.clientHeight;
-      const itemBottom = scrollTop + props.itemHeight;
-      if (scrollTop >= currentTop && itemBottom <= viewBottom) {
-        return;
-      }
+      const currentTop = element.scrollTop
+      const viewBottom = currentTop + element.clientHeight
+      const itemBottom = scrollTop + props.itemHeight
+      if (scrollTop >= currentTop && itemBottom <= viewBottom) return
 
-      await nextTick();
-      const maxScrollTop = getScrollHeight() - virtualList.value!.clientHeight; //到底部的scrollTop最大值
-      scrollTop = Math.min(scrollTop, maxScrollTop);
-      elm.value.scrollTo({
+      await nextTick()
+      scrollTop = Math.min(
+        scrollTop,
+        getScrollHeight() - element.clientHeight,
+      )
+      element.scrollTo({
         left: 0,
         top: scrollTop,
-        behavior: anim ? 'smooth' : 'auto',
-      });
-
-      scrollEvent(
-        {
-          target: elm.value,
-        },
-        true
-      );
+        behavior: animation ? 'smooth' : 'auto',
+      })
+      scrollEvent({ target: element }, true)
 
       if (getScrollHeight() !== currentScrollHeight) {
-        await scrollToIndex(index, anim, false);
-        return;
+        await scrollToIndex(index, animation, false)
+        return
       }
 
-      let currentScrollTop = Math.floor(elm.value.scrollTop);
-      let diff = Math.abs(currentScrollTop - scrollTop) > props.itemHeight / 2;
-
-      let a = setTimeout(async () => {
-        clearTimeout(a);
-        if (currentScrollTop !== scrollTop && !lockScroll.value) {
-          if (diff) {
-            await scrollToIndex(index, anim, false);
-          }
+      const currentScrollTop = Math.floor(element.scrollTop)
+      const differs = Math.abs(currentScrollTop - scrollTop) > props.itemHeight / 2
+      const timer = setTimeout(() => {
+        clearTimeout(timer)
+        if (currentScrollTop !== scrollTop && !lockScroll.value && differs) {
+          void scrollToIndex(index, animation, false)
         } else if (currentScrollTop === scrollTop) {
-          unlockScroll();
+          unlockScroll()
         }
-      }, 100);
-    };
+      }, 100)
+    }
 
-    const updatePhantomStyle = (height: string) => {
-      if (phantom.value) {
-        phantom.value.style.height = height;
+    onMounted(() => {
+      void nextTick(() => {
+        ready.value = true
+        startRender()
+        if (!screenHeight.value) {
+          const timer = setTimeout(() => {
+            startRender()
+            clearTimeout(timer)
+          }, 100)
+        }
+      })
+
+      const element = elm.value
+      if (element) {
+        resizer = new ResizeObserver(debounce(() => handleResize(), 100))
+        resizer.observe(element)
       }
-    };
+    })
 
-    // 暴露方法
+    onBeforeUnmount(() => {
+      scrollTopCache = 0
+      resizer?.disconnect()
+      resizer = null
+      if (lockTimer.value) clearTimeout(lockTimer.value)
+      lockTimer.value = null
+    })
+
+    onActivated(() => {
+      const element = elm.value
+      if (content.value && element) {
+        element.scrollTop = scrollTopCache
+        updatePhantomStyle(`${indexedListData.value.length * props.itemHeight}px`)
+        content.value.style.transform = `translate3d(0,${startOffset.value}px,0)`
+      }
+      active.value = true
+    })
+
+    onDeactivated(() => {
+      active.value = false
+    })
+
+    onUpdated(() => {
+      if (!active.value) return
+      unlockScroll()
+      afterRenderUpdated()
+    })
+
+    watch(listHeight, () => handleResize())
+
     expose({
       scrollToIndex,
       handleResize,
-    });
+    })
 
-    // render 函数
     return () =>
       h(
         'section',
@@ -491,33 +431,29 @@ export default {
           class: ['virtual-tree'],
           style: listHeight.value,
           ...renderHelper(
-            {
-              'data-h': props.itemHeight,
-            },
-            { scroll: scrollEvent }
+            { 'data-h': props.itemHeight },
+            { scroll: (event) => scrollEvent(event) },
           ),
         },
         [
-          //撑起列表高度
           h('div', {
             ref: phantom,
             class: 'virtual-tree-phantom',
           }),
-          //渲染容器
           h(
             'div',
             {
               ref: content,
               class: 'virtual-tree-container',
             },
-            renderListData.value.map((item: any) => {
-              return slots.default?.({
-                item: item,
-                index: item._index,
-              });
-            })
+            renderListData.value.map((entry) =>
+              slots.default?.({
+                item: entry.item,
+                index: entry.index,
+              }),
+            ),
           ),
-        ]
-      );
+        ],
+      )
   },
-};
+})

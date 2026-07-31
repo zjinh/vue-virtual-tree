@@ -17,7 +17,12 @@ import SourceVueVirtualTree, {
   type TreeNodeData as SourceTreeNodeData,
   type TreeOptionProps as SourceTreeOptionProps,
   type TreeProperty as SourceTreeProperty,
+  type VueVirtualTreeCheckState as SourceVueVirtualTreeCheckState,
+  type VueVirtualTreeDefaultSlotProps as SourceVueVirtualTreeDefaultSlotProps,
+  type VueVirtualTreeEventMap as SourceVueVirtualTreeEventMap,
+  type VueVirtualTreeInstance as SourceVueVirtualTreeInstance,
   type VueVirtualTreePlugin as SourceVueVirtualTreePlugin,
+  type VueVirtualTreeProps as SourceVueVirtualTreeProps,
   type VueVirtualTreeRegistrar as SourceVueVirtualTreeRegistrar,
 } from '../../../src/index'
 import {
@@ -31,6 +36,11 @@ import {
   type TreeNodeData,
   type TreeOptionProps,
   type TreeProperty,
+  type VueVirtualTreeCheckState,
+  type VueVirtualTreeDefaultSlotProps,
+  type VueVirtualTreeEventMap,
+  type VueVirtualTreeInstance,
+  type VueVirtualTreeProps,
 } from '@zjinh/vue-virtual-tree'
 
 type Equal<Left, Right> =
@@ -152,6 +162,154 @@ const sourceProps: SourceTreeOptionProps<ConsumerTreeNode> = props
 const sourceLoad: SourceLoadFunction<ConsumerTreeNode> = load
 const sourceFilter: SourceFilterFunction<ConsumerTreeNode, string> = filter
 
+type ExpectedPropKeys =
+  | 'data'
+  | 'emptyText'
+  | 'nodeKey'
+  | 'checkStrictly'
+  | 'defaultExpandAll'
+  | 'checkDescendants'
+  | 'selectChildrenOnly'
+  | 'itemSize'
+  | 'autoExpandParent'
+  | 'defaultCheckedKeys'
+  | 'defaultExpandedKeys'
+  | 'currentNodeKey'
+  | 'renderContent'
+  | 'showCheckbox'
+  | 'props'
+  | 'lazy'
+  | 'highlightCurrent'
+  | 'load'
+  | 'filterNodeMethod'
+  | 'indent'
+  | 'iconClass'
+  | 'height'
+
+type ExpectedInstanceKeys =
+  | 'filter'
+  | 'scrollToItem'
+  | 'getNodePath'
+  | 'getCheckedNodes'
+  | 'getCheckedKeys'
+  | 'getCurrentNode'
+  | 'getCurrentKey'
+  | 'setCheckedNodes'
+  | 'setCheckedKeys'
+  | 'setChecked'
+  | 'setCheckedAll'
+  | 'getHalfCheckedNodes'
+  | 'getHalfCheckedKeys'
+  | 'getSelectedLeafNodes'
+  | 'getSelectedLeafKeys'
+  | 'setCurrentNode'
+  | 'setCurrentKey'
+  | 'getNode'
+  | 'remove'
+  | 'append'
+  | 'insertBefore'
+  | 'insertAfter'
+  | 'updateKeyChildren'
+
+type PropsExposeExactlyTheRuntimeProps = Assert<
+  Equal<keyof VueVirtualTreeProps<ConsumerTreeNode>, ExpectedPropKeys>
+>
+type InstanceExposesExactlyTheRuntimeMethods = Assert<
+  Equal<keyof VueVirtualTreeInstance<ConsumerTreeNode>, ExpectedInstanceKeys>
+>
+type SourcePropsMatchDist = Assert<
+  Equal<SourceVueVirtualTreeProps<ConsumerTreeNode>, VueVirtualTreeProps<ConsumerTreeNode>>
+>
+type SourceInstanceMatchesDist = Assert<
+  Equal<SourceVueVirtualTreeInstance<ConsumerTreeNode>, VueVirtualTreeInstance<ConsumerTreeNode>>
+>
+type SourceCheckStateMatchesDist = Assert<
+  Equal<SourceVueVirtualTreeCheckState<ConsumerTreeNode>, VueVirtualTreeCheckState<ConsumerTreeNode>>
+>
+type SourceSlotMatchesDist = Assert<
+  Equal<SourceVueVirtualTreeDefaultSlotProps<ConsumerTreeNode>, VueVirtualTreeDefaultSlotProps<ConsumerTreeNode>>
+>
+type SourceEventsMatchDist = Assert<
+  Equal<SourceVueVirtualTreeEventMap<ConsumerTreeNode>, VueVirtualTreeEventMap<ConsumerTreeNode>>
+>
+
+const componentProps: VueVirtualTreeProps<ConsumerTreeNode> = {
+  data: [{ id: 1, name: 'root' }],
+  emptyText: 'empty',
+  nodeKey: 'id',
+  checkStrictly: false,
+  defaultExpandAll: false,
+  checkDescendants: false,
+  selectChildrenOnly: false,
+  itemSize: 26,
+  autoExpandParent: true,
+  defaultCheckedKeys: [1],
+  defaultExpandedKeys: [1],
+  currentNodeKey: 1,
+  renderContent: (_createElement, context) => context.data.name,
+  showCheckbox: true,
+  props,
+  lazy: false,
+  highlightCurrent: true,
+  load,
+  filterNodeMethod: filter,
+  indent: 18,
+  iconClass: 'caret',
+  height: 240,
+}
+const sourceComponentProps: SourceVueVirtualTreeProps<ConsumerTreeNode> = componentProps
+
+declare const componentInstance: VueVirtualTreeInstance<ConsumerTreeNode>
+declare const sourceComponentInstance: SourceVueVirtualTreeInstance<ConsumerTreeNode>
+
+function consumeComponentInstance(instance: VueVirtualTreeInstance<ConsumerTreeNode>) {
+  instance.filter('root')
+  instance.scrollToItem(1, 18, false)
+  instance.getNodePath(1)
+  instance.getCheckedNodes(false, true)
+  instance.getCheckedKeys(false)
+  instance.getCurrentNode()
+  instance.getCurrentKey()
+  instance.setCheckedNodes([{ id: 1, name: 'root' }], false)
+  instance.setCheckedKeys([1], false)
+  instance.setChecked(1, true, true)
+  instance.setCheckedAll(false)
+  instance.getHalfCheckedNodes()
+  instance.getHalfCheckedKeys()
+  instance.getSelectedLeafNodes()
+  instance.getSelectedLeafKeys()
+  instance.setCurrentNode({ id: 1, name: 'root' })
+  instance.setCurrentKey(1)
+  instance.getNode(1)
+  instance.remove(1)
+  instance.append({ id: 2, name: 'child' }, 1)
+  instance.insertBefore({ id: 3, name: 'before' }, 2)
+  instance.insertAfter({ id: 4, name: 'after' }, 2)
+  instance.updateKeyChildren(1, [{ id: 5, name: 'updated' }])
+}
+
+consumeComponentInstance(componentInstance)
+consumeComponentInstance(sourceComponentInstance)
+
+const checkState: VueVirtualTreeCheckState<ConsumerTreeNode> = {
+  checkedNodes: [{ id: 1, name: 'root' }],
+  checkedKeys: [1],
+  halfCheckedNodes: [],
+  halfCheckedKeys: [],
+  selectedLeafNodes: [],
+  selectedLeafKeys: [],
+}
+const slotProps: VueVirtualTreeDefaultSlotProps<ConsumerTreeNode> = {
+  node: modelNode!,
+  item: { id: 1, name: 'root' },
+  selectChange: (checked) => componentInstance.setChecked(1, checked),
+}
+const checkEvent: VueVirtualTreeEventMap<ConsumerTreeNode>['check'] = [
+  slotProps.item,
+  checkState,
+]
+const sourceCheckEvent: SourceVueVirtualTreeEventMap<ConsumerTreeNode>['check'] = checkEvent
+
 void modelNode
 void sourceNode
 void nodeConstructor
@@ -159,6 +317,12 @@ void sourceData
 void sourceProps
 void sourceLoad
 void sourceFilter
+void componentProps
+void sourceComponentProps
+void checkState
+void slotProps
+void checkEvent
+void sourceCheckEvent
 void invalidDistChildrenProps
 void invalidSourceChildrenProps
 void invalidDistLeafProps
@@ -185,4 +349,11 @@ export type {
   SourceNamedMatchesDefault,
   SourcePluginMatchesDist,
   SourceRegistrarMatchesDist,
+  PropsExposeExactlyTheRuntimeProps,
+  InstanceExposesExactlyTheRuntimeMethods,
+  SourcePropsMatchDist,
+  SourceInstanceMatchesDist,
+  SourceCheckStateMatchesDist,
+  SourceSlotMatchesDist,
+  SourceEventsMatchDist,
 }

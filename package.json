@@ -51,14 +51,18 @@
   "scripts": {
     "build": "node scripts/clean-build.mjs && tsdown && tsc -p tsconfig.declarations.json && node scripts/finalize-build.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm run test:package && pnpm run test:model && pnpm run typecheck && pnpm run build && pnpm run test:artifacts && pnpm run test:types",
+    "typecheck:sfc": "vue-tsc --noEmit -p tsconfig.sfc.json",
+    "test": "pnpm run test:package && pnpm run test:model && pnpm run test:components && pnpm run typecheck && pnpm run typecheck:sfc && pnpm run build && pnpm run test:artifacts && pnpm run test:types",
     "test:package": "node --test tests/package-contract.test.mjs",
     "test:model": "vitest run tests/model",
+    "test:component:vue2": "vitest run --config vitest.component.vue2.config.ts",
+    "test:component:vue3": "vitest run --config vitest.component.vue3.config.ts",
+    "test:components": "pnpm run test:component:vue2 && pnpm run test:component:vue3",
     "test:artifacts": "node --test tests/artifact-contract.test.mjs",
     "test:types": "tsc -p tests/types/vue3/tsconfig.json && tsc -p tests/types/vue2/tsconfig.json",
     "prepack": "pnpm run build && pnpm run test:artifacts",
     "prepublishOnly": "pnpm run release:check",
-    "release:check": "pnpm run test:package && pnpm run test:model && pnpm run typecheck && pnpm run build && pnpm run test:artifacts && pnpm run test:types && publint"
+    "release:check": "pnpm run test:package && pnpm run test:model && pnpm run test:components && pnpm run typecheck && pnpm run typecheck:sfc && pnpm run build && pnpm run test:artifacts && pnpm run test:types && publint"
   },
   "peerDependencies": {
     "vue": "^2.7.0 || ^3.2.0"
@@ -67,6 +71,7 @@
     "@tsdown/css": "0.22.14",
     "@types/node": "^22.20.1",
     "@vitejs/plugin-vue2": "2.3.4",
+    "jsdom": "30.0.1",
     "less": "4.8.1",
     "publint": "0.3.22",
     "tsdown": "0.22.14",
@@ -75,6 +80,7 @@
     "vite": "7.2.4",
     "vitest": "4.1.10",
     "vue": "3.5.40",
+    "vue-tsc": "3.3.9",
     "vue2": "npm:vue@2.7.16"
   },
   "publishConfig": {

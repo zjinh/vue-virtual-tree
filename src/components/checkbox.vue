@@ -8,27 +8,35 @@
         :disabled="isDisabled"
         :value="label"
         :name="name"
-        :aria-controls="indeterminate?controls:null"
+        :aria-controls="indeterminate ? controls : undefined"
         :checked="model"
         :indeterminate="indeterminate"
         @change="handleChange"
     />
   </div>
 </template>
-<script>
-import {defineComponent} from "vue";
+<script lang="ts">
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
+interface FormContext {
+  disabled?: boolean
+}
+
+type CheckboxModel = boolean | unknown[]
 
 export default defineComponent({
-  name: "Checkbox",
+  name: 'Checkbox',
+  emits: ['change', 'update:modelValue'],
   inject: {
     elForm: {
-      default: ""
+      default: () => ({}),
     },
     elFormItem: {
-      default: ""
-    }
+      default: () => ({}),
+    },
   },
-  componentName: "Checkbox",
+  componentName: 'Checkbox',
   data() {
     return {
       selfModel: false,
@@ -36,28 +44,33 @@ export default defineComponent({
   },
   computed: {
     model: {
-      get() {
+      get(): CheckboxModel {
         if (this.modelValue !== undefined) {
           return this.modelValue
-        } else {
-          return this.selfModel
         }
+        return this.selfModel
       },
-      set(val) {
-        this.$emit("update:modelValue", val);
-        this.selfModel = val;
-      }
+      set(value: CheckboxModel) {
+        this.$emit('update:modelValue', value)
+        if (typeof value === 'boolean') this.selfModel = value
+      },
     },
-    store() {
+    store(): CheckboxModel | undefined {
       return this.modelValue;
     },
-    isDisabled() {
-      return this.disabled || (this.elForm || {}).disabled;
+    isDisabled(): boolean {
+      return this.disabled || Boolean((this.elForm as FormContext).disabled)
     },
   },
   props: {
-    modelValue: {},
-    label: {},
+    modelValue: {
+      type: [Boolean, Array] as PropType<CheckboxModel>,
+      default: undefined,
+    },
+    label: {
+      type: null as unknown as PropType<unknown>,
+      default: undefined,
+    },
     indeterminate: Boolean,
     disabled: Boolean,
     checked: Boolean,
@@ -68,22 +81,22 @@ export default defineComponent({
     size: String
   },
   methods: {
-    addToStore() {
+    addToStore(): void {
       if (Array.isArray(this.model) && this.model.indexOf(this.label) === -1) {
-        this.model.push(this.label);
+        this.model.push(this.label)
       } else {
-        this.model = true;
+        this.model = true
       }
     },
-    handleChange(ev) {
-      let value = !!ev.target.checked;
-      this.$emit("change", value, ev);
-    }
+    handleChange(event: Event): void {
+      const target = event.target as HTMLInputElement
+      this.$emit('change', target.checked, event)
+    },
   },
   created() {
-    this.checked && this.addToStore();
+    if (this.checked) this.addToStore()
   },
-});
+})
 </script>
 
 <style lang="less" scoped>

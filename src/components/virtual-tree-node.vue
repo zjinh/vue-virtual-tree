@@ -44,13 +44,47 @@
   </div>
 </template>
 
-<script type="text/jsx">
-import {defineComponent} from "vue"
-import Checkbox from "./checkbox.vue";
-import {getNodeKey} from "../model/util";
+<script lang="ts">
+import { defineComponent } from 'vue'
+import type { PropType } from 'vue'
+
+import Checkbox from './checkbox.vue'
+import type {
+  TreeNode,
+  TreeNodeData,
+  TreeOptionProps,
+  TreeStore,
+  VueVirtualTreeRenderContent,
+} from '../index'
+import { getNodeKey } from '../model/util'
+
+interface TreeContext {
+  $emit(event: string, ...args: unknown[]): void
+  _events?: Record<string, unknown | unknown[]>
+  checkOnClickNode?: boolean
+  currentNode: unknown
+  draggable?: boolean
+  expandOnClickNode?: boolean
+  iconClass?: string
+  indent: number
+  isTree?: boolean
+  nodeKey?: string
+  props?: TreeOptionProps<TreeNodeData>
+  store: TreeStore<TreeNodeData>
+  tree?: TreeContext
+}
+
+interface TreeParentCandidate {
+  $parent?: TreeParentCandidate | null
+  isTree?: boolean
+  tree?: TreeContext
+}
+
+type CheckChangeValue = boolean | Event | null | undefined
+
 export default defineComponent({
-  name: "virtualTreeNode",
-  componentName: "virtualTreeNode",
+  name: 'virtualTreeNode',
+  componentName: 'virtualTreeNode',
   components: {
     Checkbox,
   },
@@ -60,11 +94,10 @@ export default defineComponent({
       default: 26,
     },
     node: {
-      default() {
-        return {};
-      },
+      type: Object as PropType<TreeNode<TreeNodeData>>,
+      required: true,
     },
-    renderContent: Function,
+    renderContent: Function as PropType<VueVirtualTreeRenderContent<TreeNodeData>>,
     showCheckbox: {
       type: Boolean,
       default: false,
@@ -79,158 +112,171 @@ export default defineComponent({
   },
   data() {
     return {
-      tree: null,
+      tree: null as unknown as TreeContext,
       expanded: false,
       childNodeRendered: false,
-      oldChecked: null,
-      oldIndeterminate: null,
-    };
+      oldChecked: null as boolean | null,
+      oldIndeterminate: null as boolean | null,
+    }
   },
   watch: {
-    "node.indeterminate"(val) {
-      this.handleSelectChange(this.node.checked, val);
+    'node.indeterminate'(value: boolean) {
+      this.handleSelectChange(this.node.checked, value)
     },
 
-    "node.checked"(val) {
-      this.handleSelectChange(val, this.node.indeterminate);
+    'node.checked'(value: boolean) {
+      this.handleSelectChange(value, this.node.indeterminate)
     },
 
-    "node.expanded"(val) {
-      this.$nextTick(() => (this.expanded = val));
-      if (val) {
-        this.childNodeRendered = true;
+    'node.expanded'(value: boolean) {
+      this.$nextTick(() => (this.expanded = value))
+      if (value) {
+        this.childNodeRendered = true
       }
     },
   },
   created() {
-    this.init(this.$parent.$parent);
+    this.init(this.$parent as unknown as TreeParentCandidate)
   },
   methods: {
-    init(parent) {
-      if (parent.isTree) {
-        this.tree = parent;
-      } else {
-        this.tree = parent.tree;
+    init(parent: TreeParentCandidate | null): void {
+      let current = parent
+      let tree: TreeContext | null = null
+
+      while (current) {
+        if (current.isTree) {
+          tree = current as unknown as TreeContext
+          break
+        }
+        if (current.tree) {
+          tree = current.tree
+          break
+        }
+        current = current.$parent ?? null
       }
 
-      const tree = this.tree;
       if (!tree) {
-        console.warn("Can not find node's tree.");
+        throw new Error("Can not find node's tree.")
       }
+      this.tree = tree
 
-      const props = tree.props || {};
-      const childrenKey = props["children"] || "children";
+      const props = tree.props || {}
+      const childrenKey = typeof props.children === 'string' ? props.children : 'children'
 
       this.$watch(`node.data.${childrenKey}`, () => {
-        this.node.updateChildren();
-      });
+        this.node.updateChildren()
+      })
 
       if (this.node.expanded) {
-        this.expanded = true;
-        this.childNodeRendered = true;
+        this.expanded = true
+        this.childNodeRendered = true
       }
     },
 
-    getNodeKey(node) {
-      return getNodeKey(this.tree.nodeKey, node.data);
+    getNodeKey(node: TreeNode<TreeNodeData>) {
+      return getNodeKey(this.tree.nodeKey as never, node.data)
     },
 
-    handleDragStart(event) {
+    handleDragStart(event: DragEvent): void {
       if (!this.tree.draggable) return;
-      this.tree.$emit("tree-node-drag-start", event, this);
+      this.tree.$emit('tree-node-drag-start', event, this)
     },
 
-    handleDragOver(event) {
+    handleDragOver(event: DragEvent): void {
       if (!this.tree.draggable) return;
-      this.tree.$emit("tree-node-drag-over", event, this);
-      event.preventDefault();
+      this.tree.$emit('tree-node-drag-over', event, this)
+      event.preventDefault()
     },
 
-    handleDragEnd(event) {
+    handleDragEnd(event: DragEvent): void {
       if (!this.tree.draggable) return;
-      this.tree.$emit("tree-node-drag-end", event, this);
+      this.tree.$emit('tree-node-drag-end', event, this)
     },
 
-    handleDrop(event) {
-      event.preventDefault();
+    handleDrop(event: DragEvent): void {
+      event.preventDefault()
     },
 
-    handleSelectChange(checked, indeterminate) {
-      const node = this.node;
+    handleSelectChange(checked: boolean, indeterminate: boolean): void {
+      const node = this.node
       if (
           this.oldChecked !== checked ||
           this.oldIndeterminate !== indeterminate
       ) {
         this.tree.$emit(
-            "check-change",
+            'check-change',
             node.data,
             checked,
             indeterminate,
-        );
+        )
       }
-      this.oldChecked = checked;
-      this.oldIndeterminate = indeterminate;
+      this.oldChecked = checked
+      this.oldIndeterminate = indeterminate
     },
 
-    handleClick() {
-      const node = this.node;
-      const store = this.tree.store;
+    handleClick(): void {
+      const node = this.node
+      const store = this.tree.store
 
-      store.setCurrentNode(node);
+      store.setCurrentNode(node)
       this.tree.$emit(
-          "current-change",
+          'current-change',
           store.currentNode ? store.currentNode.data : null,
           store.currentNode,
-      );
-      this.tree.currentNode = this;
+      )
+      this.tree.currentNode = this
       if (this.tree.expandOnClickNode) {
-        this.handleExpandIconClick();
+        this.handleExpandIconClick()
       }
       if (this.tree.checkOnClickNode && !node.disabled) {
-        this.handleCheckChange(null, {
-          target: { checked: !node.checked },
-        });
+        this.handleCheckChange(!node.checked)
       }
 
-      this.tree.$emit("node-click", node.data, node, this);
+      this.tree.$emit('node-click', node.data, node, this)
     },
 
-    handleContextMenu(event) {
-      const node = this.node;
+    handleContextMenu(event: MouseEvent): void {
+      const node = this.node
+      const contextMenuListeners = this.tree._events?.['node-contextmenu']
 
       if (
-          this.tree._events &&
-          this.tree._events["node-contextmenu"] &&
-          this.tree._events["node-contextmenu"].length > 0
+          Array.isArray(contextMenuListeners) &&
+          contextMenuListeners.length > 0
       ) {
-        event.stopPropagation();
-        event.preventDefault();
+        event.stopPropagation()
+        event.preventDefault()
       }
-      this.tree.$emit("node-contextmenu", event, node.data, node, this);
+      this.tree.$emit('node-contextmenu', event, node.data, node, this)
     },
 
-    handleExpandIconClick() {
-      const node = this.node;
+    handleExpandIconClick(): void {
+      const node = this.node
 
       if (node.isLeaf) return;
       if (this.expanded) {
-        this.tree.$emit("node-collapse", node.data, node, this);
-        node.collapse();
+        this.tree.$emit('node-collapse', node.data, node, this)
+        node.collapse()
       } else {
-        node.expand();
-        this.$emit("node-expand", node.data, node, this);
+        node.expand()
+        this.$emit('node-expand', node.data, node, this)
       }
     },
 
-    handleCheckChange(_, ev) {
-      if(typeof ev==='object'&&ev){
-        this.$emit("check-change", this.node,ev.target.checked);
-      }else{
-        this.$emit("check-change", this.node,ev);
+    handleCheckChange(
+      value: CheckChangeValue,
+      eventOrChecked?: CheckChangeValue,
+    ): void {
+      const candidate = eventOrChecked ?? value
+      if (typeof candidate === 'boolean') {
+        this.$emit('check-change', this.node, candidate)
+        return
       }
-    }
-  }
-});
+      if (candidate instanceof Event && candidate.target instanceof HTMLInputElement) {
+        this.$emit('check-change', this.node, candidate.target.checked)
+      }
+    },
+  },
+})
 </script>
 
 <style lang="less" scoped>

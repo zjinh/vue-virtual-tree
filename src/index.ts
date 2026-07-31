@@ -141,6 +141,113 @@ export interface TreeStoreOptions<T extends TreeNodeData> {
 
 export type TreeNodeReference<T extends TreeNodeData> = TreeKey | T | Node<T>
 
+export interface VueVirtualTreeRenderContext<
+  T extends TreeNodeData = TreeNodeData,
+> {
+  node: Node<T>
+  data: T
+  store: TreeStore<T>
+}
+
+export type VueVirtualTreeRenderContent<
+  T extends TreeNodeData = TreeNodeData,
+> = (
+  createElement: (...args: unknown[]) => unknown,
+  context: VueVirtualTreeRenderContext<T>,
+) => unknown
+
+export interface VueVirtualTreeProps<
+  T extends TreeNodeData = TreeNodeData,
+> {
+  data?: T[]
+  emptyText?: string
+  nodeKey?: TreeNodeKey<T>
+  checkStrictly?: boolean
+  defaultExpandAll?: boolean
+  checkDescendants?: boolean
+  selectChildrenOnly?: boolean
+  itemSize?: number
+  autoExpandParent?: boolean
+  defaultCheckedKeys?: TreeKey[]
+  defaultExpandedKeys?: TreeKey[]
+  currentNodeKey?: TreeKey
+  renderContent?: VueVirtualTreeRenderContent<T>
+  showCheckbox?: boolean
+  props?: TreeOptionProps<T>
+  lazy?: boolean
+  highlightCurrent?: boolean
+  load?: LoadFunction<T>
+  filterNodeMethod?: FilterFunction<T>
+  indent?: number
+  iconClass?: string
+  height?: string | number
+}
+
+export interface VueVirtualTreeCheckState<
+  T extends TreeNodeData = TreeNodeData,
+> {
+  checkedNodes: T[]
+  checkedKeys: Array<TreeKey | undefined>
+  halfCheckedNodes: T[]
+  halfCheckedKeys: Array<TreeKey | undefined>
+  selectedLeafNodes?: T[]
+  selectedLeafKeys?: Array<TreeKey | undefined>
+}
+
+export type VueVirtualTreeSelectChange = (checked: boolean) => void
+
+export interface VueVirtualTreeDefaultSlotProps<
+  T extends TreeNodeData = TreeNodeData,
+> {
+  node: Node<T>
+  item: T
+  selectChange: VueVirtualTreeSelectChange
+}
+
+export interface VueVirtualTreeNodeInstance<
+  T extends TreeNodeData = TreeNodeData,
+> {
+  node: Node<T>
+}
+
+export interface VueVirtualTreeEventMap<
+  T extends TreeNodeData = TreeNodeData,
+> {
+  'node-click': [data: T, node: Node<T>, instance: VueVirtualTreeNodeInstance<T>]
+  'node-expand': [data: T, node: Node<T>, instance: VueVirtualTreeNodeInstance<T>]
+  'current-change': [data: T | null, node: Node<T> | null]
+  'check-change': [data: T, checked: boolean, indeterminate: boolean]
+  check: [data: T, state: VueVirtualTreeCheckState<T>]
+}
+
+export interface VueVirtualTreeInstance<
+  T extends TreeNodeData = TreeNodeData,
+> {
+  filter<Value = unknown>(value: Value): void
+  scrollToItem(key: TreeKey, levelStepPadding?: number, animation?: boolean): void
+  getNodePath(data: TreeNodeReference<T>): T[]
+  getCheckedNodes(leafOnly?: boolean, includeHalfChecked?: boolean): T[]
+  getCheckedKeys(leafOnly?: boolean): Array<TreeKey | undefined>
+  getCurrentNode(): T | null
+  getCurrentKey(): TreeKey | null
+  setCheckedNodes(nodes: T[], leafOnly?: boolean): void
+  setCheckedKeys(keys: TreeKey[], leafOnly?: boolean): void
+  setChecked(data: TreeNodeReference<T>, checked: boolean, deep?: boolean): void
+  setCheckedAll(checked?: boolean): void
+  getHalfCheckedNodes(): T[]
+  getHalfCheckedKeys(): Array<TreeKey | undefined>
+  getSelectedLeafNodes(): T[]
+  getSelectedLeafKeys(): Array<TreeKey | undefined>
+  setCurrentNode(node: T): void
+  setCurrentKey(key: TreeKey | null): void
+  getNode(data: TreeNodeReference<T>): Node<T> | null
+  remove(data: TreeNodeReference<T>): void
+  append(data: T, parentNode?: TreeNodeReference<T> | null): void
+  insertBefore(data: T, refNode: TreeNodeReference<T>): void
+  insertAfter(data: T, refNode: TreeNodeReference<T>): void
+  updateKeyChildren(key: TreeKey, data: T[]): void
+}
+
 export interface TreeStore<T extends TreeNodeData = TreeNodeData> {
   currentNode: Node<T> | null
   currentNodeKey: TreeKey | null | undefined

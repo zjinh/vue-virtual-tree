@@ -130,6 +130,66 @@ test('keeps the tree model exclusively in TypeScript and inside package typechec
   assert.ok(!tsconfig.include.includes('src/**/*.js'))
 })
 
+test('keeps component SFC scripts in TypeScript and inside the SFC typecheck gate', async () => {
+  const componentFiles = [
+    'src/index.vue',
+    'src/components/checkbox.vue',
+    'src/components/virtual-tree-node.vue',
+  ]
+
+  for (const componentFile of componentFiles) {
+    const source = await readFile(new URL(componentFile, root), 'utf8')
+    assert.match(
+      source,
+      /<script\s+[^>]*lang=["']ts["'][^>]*>/,
+      `${componentFile} must use a TypeScript script block`,
+    )
+  }
+
+  const virtualList = await readFile(
+    new URL('src/components/virtualList.ts', root),
+    'utf8',
+  )
+  assert.doesNotMatch(virtualList, /@ts-ignore/)
+
+  const sfcConfig = JSON.parse(
+    await readFile(new URL('tsconfig.sfc.json', root), 'utf8'),
+  )
+  assert.equal(sfcConfig.compilerOptions.strict, true)
+  assert.ok(sfcConfig.include.includes('src/**/*.vue'))
+  assert.equal(packageJson.scripts['typecheck:sfc'], 'vue-tsc --noEmit -p tsconfig.sfc.json')
+  assert.ok(packageJson.devDependencies['vue-tsc'])
+})
+
+test('runs independent Vue 2 and Vue 3 component runtime suites in package gates', async () => {
+  assert.equal(
+    packageJson.scripts['test:component:vue2'],
+    'vitest run --config vitest.component.vue2.config.ts',
+  )
+  assert.equal(
+    packageJson.scripts['test:component:vue3'],
+    'vitest run --config vitest.component.vue3.config.ts',
+  )
+  assert.match(packageJson.scripts['test:components'], /test:component:vue2/)
+  assert.match(packageJson.scripts['test:components'], /test:component:vue3/)
+  assert.ok(packageJson.devDependencies.jsdom)
+
+  await access(new URL('vitest.component.vue2.config.ts', root))
+  await access(new URL('vitest.component.vue3.config.ts', root))
+
+  const runtimeTest = await readFile(
+    new URL('tests/component/runtime.test.ts', root),
+    'utf8',
+  )
+  assert.match(runtimeTest, /destroy|unmount/)
+  assert.match(runtimeTest, /virtual/i)
+
+  for (const scriptName of ['test', 'release:check']) {
+    assert.match(packageJson.scripts[scriptName], /test:components/)
+    assert.match(packageJson.scripts[scriptName], /typecheck:sfc/)
+  }
+})
+
 test('cleans the exact repository dist directory before building', async () => {
   const cleaner = await readFile(new URL('scripts/clean-build.mjs', root), 'utf8')
   assert.match(cleaner, /new URL\('\.\.\/dist\/', import\.meta\.url\)/)
