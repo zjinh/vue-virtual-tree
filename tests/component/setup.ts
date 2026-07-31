@@ -1,14 +1,49 @@
+const resizeObservers = new Set<TestResizeObserver>()
+
 class TestResizeObserver implements ResizeObserver {
-  disconnect(): void {}
+  readonly #callback: ResizeObserverCallback
+  readonly #elements = new Set<Element>()
 
-  observe(): void {}
+  constructor(callback: ResizeObserverCallback) {
+    this.#callback = callback
+    resizeObservers.add(this)
+  }
 
-  unobserve(): void {}
+  disconnect(): void {
+    this.#elements.clear()
+    resizeObservers.delete(this)
+  }
+
+  observe(element: Element): void {
+    this.#elements.add(element)
+  }
+
+  unobserve(element: Element): void {
+    this.#elements.delete(element)
+  }
+
+  trigger(element?: Element): void {
+    const targets = element
+      ? this.#elements.has(element) ? [element] : []
+      : Array.from(this.#elements)
+    if (targets.length === 0) return
+    this.#callback(
+      targets.map((target) => ({ target }) as ResizeObserverEntry),
+      this,
+    )
+  }
 }
 
 Object.defineProperty(globalThis, 'ResizeObserver', {
   configurable: true,
   value: TestResizeObserver,
+})
+
+Object.defineProperty(globalThis, 'triggerResizeObservers', {
+  configurable: true,
+  value(element?: Element) {
+    for (const observer of resizeObservers) observer.trigger(element)
+  },
 })
 
 const pixelSize = (element: HTMLElement, property: 'height' | 'width'): number => {

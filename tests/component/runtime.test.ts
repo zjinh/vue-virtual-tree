@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import * as VueRuntime from 'vue'
 
+import VirtualList from '../../src/components/virtualList'
 import TreeComponent from '../../src/index.vue'
 import type {
   TreeNode,
@@ -37,6 +38,20 @@ interface MountResult {
   unmount(): void
 }
 
+interface VirtualListMountResult {
+  events: {
+    scroll: unknown[][]
+    scrollEnd: unknown[][]
+  }
+  host: HTMLElement
+  unmount(): void
+}
+
+interface MountedResource {
+  host: HTMLElement
+  unmount(): void
+}
+
 interface Vue2Constructor {
   new (options: Record<string, unknown>): {
     $destroy(): void
@@ -51,7 +66,7 @@ interface Vue3Application {
   unmount(): void
 }
 
-const mounted: MountResult[] = []
+const mounted: MountedResource[] = []
 
 const createTreeData = (): Item[] => [
   {
@@ -160,6 +175,87 @@ const mountTree = async (options: MountOptions = {}): Promise<MountResult> => {
   return result
 }
 
+const mountVirtualList = async (): Promise<VirtualListMountResult> => {
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+  const events = {
+    scroll: [] as unknown[][],
+    scrollEnd: [] as unknown[][],
+  }
+  const props = {
+    bufferScale: 1,
+    height: '100px',
+    itemHeight: 20,
+    listData: Array.from({ length: 200 }, (_, index) => index),
+  }
+
+  let rawUnmount: () => void
+  if (__VUE_RUNTIME__ === 'vue2') {
+    const Vue2 = (
+      VueRuntime as unknown as { default: Vue2Constructor }
+    ).default
+    const parent = new Vue2({
+      render(createElement: (...args: unknown[]) => unknown) {
+        return createElement(VirtualList, {
+          on: {
+            scroll: (...args: unknown[]) => events.scroll.push(args),
+            scrollEnd: (...args: unknown[]) => events.scrollEnd.push(args),
+          },
+          props,
+          scopedSlots: {
+            default: ({ index }: { index: number }) =>
+              createElement('div', { class: 'virtual-item' }, [String(index)]),
+          },
+        })
+      },
+    })
+    parent.$mount()
+    host.appendChild(parent.$el)
+    rawUnmount = () => parent.$destroy()
+  } else {
+    const runtime = VueRuntime as typeof VueRuntime & {
+      createApp(root: unknown): Vue3Application
+    }
+    const Root = runtime.defineComponent({
+      setup() {
+        return () => runtime.h(
+          VirtualList,
+          {
+            ...props,
+            onScroll: (...args: unknown[]) => events.scroll.push(args),
+            onScrollEnd: (...args: unknown[]) => events.scrollEnd.push(args),
+          },
+          {
+            default: ({ index }: { index: number }) =>
+              runtime.h('div', { class: 'virtual-item' }, String(index)),
+          },
+        )
+      },
+    })
+    const app = runtime.createApp(Root)
+    app.mount(host)
+    rawUnmount = () => app.unmount()
+  }
+
+  let unmounted = false
+  const unmount = (): void => {
+    if (unmounted) return
+    unmounted = true
+    rawUnmount()
+  }
+  const result = { events, host, unmount }
+  mounted.push(result)
+  await settle()
+  return result
+}
+
+const triggerResizeObservers = (element: Element): void => {
+  const runtimeGlobal = globalThis as typeof globalThis & {
+    triggerResizeObservers(target?: Element): void
+  }
+  runtimeGlobal.triggerResizeObservers(element)
+}
+
 afterEach(() => {
   while (mounted.length > 0) {
     const result = mounted.pop()
@@ -168,6 +264,8 @@ afterEach(() => {
       result.host.remove()
     }
   }
+  vi.clearAllTimers()
+  vi.useRealTimers()
   document.body.replaceChildren()
 })
 
@@ -242,5 +340,62 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
 
     expect(rendered).toBeGreaterThan(0)
     expect(rendered).toBeLessThan(150)
+  })
+
+  test('isolates scroll state between two virtual list instances', async () => {
+    const first = await mountVirtualList()
+    const second = await mountVirtualList()
+    const firstElement = first.host.querySelector<HTMLElement>('.virtual-tree')!
+    const secondElement = second.host.querySelector<HTMLElement>('.virtual-tree')!
+
+    firstElement.scrollTop = 40
+    secondElement.scrollTop = 40
+    firstElement.dispatchEvent(new Event('scroll'))
+    secondElement.dispatchEvent(new Event('scroll'))
+    await settle()
+
+    expect(first.events.scroll).toHaveLength(1)
+    expect(second.events.scroll).toHaveLength(1)
+
+    first.unmount()
+    first.host.remove()
+    secondElement.dispatchEvent(new Event('scroll'))
+    await settle()
+
+    expect(second.events.scroll).toHaveLength(1)
+  })
+
+  test('recomputes the rendered window after an observed height change', async () => {
+    vi.useFakeTimers()
+    const result = await mountVirtualList()
+    const element = result.host.querySelector<HTMLElement>('.virtual-tree')!
+    const initialCount = result.host.querySelectorAll('.virtual-item').length
+
+    element.style.height = '200px'
+    triggerResizeObservers(element)
+    await vi.advanceTimersByTimeAsync(100)
+    await settle()
+
+    expect(result.host.querySelectorAll('.virtual-item').length).toBeGreaterThan(
+      initialCount,
+    )
+  })
+
+  test('cancels delayed virtual list emissions during unmount', async () => {
+    vi.useFakeTimers()
+    const result = await mountVirtualList()
+    const element = result.host.querySelector<HTMLElement>('.virtual-tree')!
+
+    element.scrollTop = 40
+    element.dispatchEvent(new Event('scroll'))
+    expect(result.events.scrollEnd).toHaveLength(0)
+    expect(vi.getTimerCount()).toBeGreaterThan(0)
+
+    result.unmount()
+    result.host.remove()
+    expect(vi.getTimerCount()).toBe(0)
+    await vi.runAllTimersAsync()
+
+    expect(result.events.scrollEnd).toHaveLength(0)
   })
 })

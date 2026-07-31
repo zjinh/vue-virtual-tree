@@ -164,7 +164,8 @@ const sourceProps: SourceTreeOptionProps<ConsumerTreeNode> = props
 const sourceLoad: SourceLoadFunction<ConsumerTreeNode> = load
 const sourceFilter: SourceFilterFunction<ConsumerTreeNode, string> = filter
 
-type ExpectedPropKeys =
+// 21 supported props plus one unsupported compatibility placeholder.
+type RuntimePropKeys =
   | 'data'
   | 'emptyText'
   | 'nodeKey'
@@ -187,6 +188,8 @@ type ExpectedPropKeys =
   | 'indent'
   | 'iconClass'
   | 'height'
+
+type SupportedPropKeys = Exclude<RuntimePropKeys, 'renderContent'>
 
 type ExpectedInstanceKeys =
   | 'filter'
@@ -222,8 +225,17 @@ type ExpectedEventKeys =
   | 'check-change'
   | 'check'
 
-type PropsExposeExactlyTheRuntimeProps = Assert<
-  Equal<keyof VueVirtualTreeProps<ConsumerTreeNode>, ExpectedPropKeys>
+type PropsExposeRuntimeKeysIncludingPlaceholder = Assert<
+  Equal<keyof VueVirtualTreeProps<ConsumerTreeNode>, RuntimePropKeys>
+>
+type PropsExposeExactlyTheSupportedRuntimeProps = Assert<
+  Equal<
+    keyof Omit<VueVirtualTreeProps<ConsumerTreeNode>, 'renderContent'>,
+    SupportedPropKeys
+  >
+>
+type RenderContentIsUnsupportedPlaceholder = Assert<
+  Equal<VueVirtualTreeProps<ConsumerTreeNode>['renderContent'], undefined>
 >
 type InstanceExposesExactlyTheRuntimeMethods = Assert<
   Equal<keyof VueVirtualTreeInstance<ConsumerTreeNode>, ExpectedInstanceKeys>
@@ -281,7 +293,6 @@ const componentProps: VueVirtualTreeProps<ConsumerTreeNode> = {
   defaultCheckedKeys: [1],
   defaultExpandedKeys: [1],
   currentNodeKey: 1,
-  renderContent: (_createElement, context) => context.data.name,
   showCheckbox: true,
   props,
   lazy: false,
@@ -293,6 +304,14 @@ const componentProps: VueVirtualTreeProps<ConsumerTreeNode> = {
   height: 240,
 }
 const sourceComponentProps: SourceVueVirtualTreeProps<ConsumerTreeNode> = componentProps
+const unsupportedDistRenderContentProps: VueVirtualTreeProps<ConsumerTreeNode> = {
+  // @ts-expect-error renderContent is an unsupported compatibility placeholder
+  renderContent: () => null,
+}
+const unsupportedSourceRenderContentProps: SourceVueVirtualTreeProps<ConsumerTreeNode> = {
+  // @ts-expect-error renderContent is an unsupported compatibility placeholder
+  renderContent: () => null,
+}
 
 declare const componentInstance: VueVirtualTreeInstance<ConsumerTreeNode>
 declare const sourceComponentInstance: SourceVueVirtualTreeInstance<ConsumerTreeNode>
@@ -410,7 +429,9 @@ export type {
   SourceNamedMatchesDefault,
   SourcePluginMatchesDist,
   SourceRegistrarMatchesDist,
-  PropsExposeExactlyTheRuntimeProps,
+  PropsExposeRuntimeKeysIncludingPlaceholder,
+  PropsExposeExactlyTheSupportedRuntimeProps,
+  RenderContentIsUnsupportedPlaceholder,
   InstanceExposesExactlyTheRuntimeMethods,
   SourcePropsMatchDist,
   SourceInstanceMatchesDist,

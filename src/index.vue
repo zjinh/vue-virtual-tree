@@ -45,8 +45,9 @@ import {
 import type {
   VueVirtualTreeCheckState,
   VueVirtualTreeNodeInstance,
-  VueVirtualTreeRenderContent,
 } from './index'
+
+type LegacyRenderContent = (...args: unknown[]) => unknown
 
 interface VirtualListInstance {
   $el: HTMLElement
@@ -99,7 +100,7 @@ export default defineComponent({
     defaultCheckedKeys: Array as PropType<TreeKey[]>,
     defaultExpandedKeys: Array as PropType<TreeKey[]>,
     currentNodeKey: [String, Number] as PropType<TreeKey>,
-    renderContent: Function as PropType<VueVirtualTreeRenderContent<TreeNodeData>>,
+    renderContent: Function as PropType<LegacyRenderContent>,
     showCheckbox: {
       type: Boolean,
       default: false,
@@ -127,7 +128,6 @@ export default defineComponent({
     height: {
       type: [String, Number] as PropType<string | number>,
       default: '100%',
-      required: true,
     },
   },
   data() {

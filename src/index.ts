@@ -141,21 +141,6 @@ export interface TreeStoreOptions<T extends TreeNodeData> {
 
 export type TreeNodeReference<T extends TreeNodeData> = TreeKey | T | Node<T>
 
-export interface VueVirtualTreeRenderContext<
-  T extends TreeNodeData = TreeNodeData,
-> {
-  node: Node<T>
-  data: T
-  store: TreeStore<T>
-}
-
-export type VueVirtualTreeRenderContent<
-  T extends TreeNodeData = TreeNodeData,
-> = (
-  createElement: (...args: unknown[]) => unknown,
-  context: VueVirtualTreeRenderContext<T>,
-) => unknown
-
 export interface VueVirtualTreeProps<
   T extends TreeNodeData = TreeNodeData,
 > {
@@ -171,7 +156,8 @@ export interface VueVirtualTreeProps<
   defaultCheckedKeys?: TreeKey[]
   defaultExpandedKeys?: TreeKey[]
   currentNodeKey?: TreeKey
-  renderContent?: VueVirtualTreeRenderContent<T>
+  /** @deprecated Not implemented; use the default scoped slot. */
+  renderContent?: never
   showCheckbox?: boolean
   props?: TreeOptionProps<T>
   lazy?: boolean

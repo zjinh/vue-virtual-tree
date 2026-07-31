@@ -54,9 +54,10 @@ import type {
   TreeNodeData,
   TreeOptionProps,
   TreeStore,
-  VueVirtualTreeRenderContent,
 } from '../index'
 import { getNodeKey } from '../model/util'
+
+type LegacyRenderContent = (...args: unknown[]) => unknown
 
 interface TreeContext {
   $emit(event: string, ...args: unknown[]): void
@@ -97,7 +98,7 @@ export default defineComponent({
       type: Object as PropType<TreeNode<TreeNodeData>>,
       required: true,
     },
-    renderContent: Function as PropType<VueVirtualTreeRenderContent<TreeNodeData>>,
+    renderContent: Function as PropType<LegacyRenderContent>,
     showCheckbox: {
       type: Boolean,
       default: false,

@@ -161,6 +161,59 @@ test('keeps component SFC scripts in TypeScript and inside the SFC typecheck gat
   assert.ok(packageJson.devDependencies['vue-tsc'])
 })
 
+test('documents 21 supported props and one unsupported renderContent placeholder', async () => {
+  const publicEntry = await readFile(new URL('src/index.ts', root), 'utf8')
+  assert.match(
+    publicEntry,
+    /\/\*\* @deprecated Not implemented; use the default scoped slot\. \*\/\s+renderContent\?: never/,
+  )
+  assert.doesNotMatch(publicEntry, /export interface VueVirtualTreeRenderContext/)
+  assert.doesNotMatch(publicEntry, /export type VueVirtualTreeRenderContent/)
+
+  const treeComponent = await readFile(new URL('src/index.vue', root), 'utf8')
+  const nodeComponent = await readFile(
+    new URL('src/components/virtual-tree-node.vue', root),
+    'utf8',
+  )
+  for (const component of [treeComponent, nodeComponent]) {
+    assert.match(component, /type LegacyRenderContent = \(\.\.\.args: unknown\[\]\) => unknown/)
+    assert.match(
+      component,
+      /renderContent:\s*Function as PropType<LegacyRenderContent>/,
+    )
+  }
+
+  const heightProp = treeComponent.match(/height:\s*\{[\s\S]*?\n\s*\},/)?.[0]
+  assert.ok(heightProp, 'src/index.vue must declare the height prop as an object')
+  assert.match(heightProp, /default:\s*'100%'/)
+  assert.doesNotMatch(heightProp, /required:\s*true/)
+
+  for (const fixturePath of [
+    'tests/types/vue2/index.ts',
+    'tests/types/vue3/index.ts',
+  ]) {
+    const fixture = await readFile(new URL(fixturePath, root), 'utf8')
+    assert.match(
+      fixture,
+      /21 supported props plus one unsupported compatibility placeholder/,
+    )
+    assert.match(
+      fixture,
+      /type SupportedPropKeys = Exclude<RuntimePropKeys, 'renderContent'>/,
+    )
+    assert.match(
+      fixture,
+      /keyof Omit<VueVirtualTreeProps<ConsumerTreeNode>, 'renderContent'>/,
+    )
+    assert.equal(
+      fixture.match(
+        /@ts-expect-error renderContent is an unsupported compatibility placeholder/g,
+      )?.length,
+      2,
+    )
+  }
+})
+
 test('runs independent Vue 2 and Vue 3 component runtime suites in package gates', async () => {
   assert.equal(
     packageJson.scripts['test:component:vue2'],

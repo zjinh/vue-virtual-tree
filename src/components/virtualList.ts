@@ -32,16 +32,19 @@ interface IndexedListItem {
 type ScrollEvent = Event | { target: HTMLElement }
 type RenderAttributes = Record<string, string | number>
 type RenderListeners = Record<string, (event: Event) => void>
+type DebouncedFunction<Args extends unknown[], Result> = ((
+  ...args: Args
+) => Result | undefined) & { cancel(): void }
 
 const debounce = <Args extends unknown[], Result>(
   callback: (...args: Args) => Result,
   wait = 50,
   immediate = false,
-): ((...args: Args) => Result | undefined) => {
+): DebouncedFunction<Args, Result> => {
   let timer: ReturnType<typeof setTimeout> | null = null
   let result: Result | undefined
 
-  return (...args: Args): Result | undefined => {
+  const debounced = (...args: Args): Result | undefined => {
     if (timer) clearTimeout(timer)
     if (immediate) {
       const callNow = !timer
@@ -51,16 +54,22 @@ const debounce = <Args extends unknown[], Result>(
       if (callNow) result = callback(...args)
     } else {
       timer = setTimeout(() => {
+        timer = null
         callback(...args)
       }, wait)
     }
     return result
   }
+
+  debounced.cancel = (): void => {
+    if (timer) clearTimeout(timer)
+    timer = null
+  }
+
+  return debounced
 }
 
 const isVue2 = version.startsWith('2')
-let scrollTopCache = 0
-let haveScrollWidth = false
 
 const renderHelper = (
   attrs: RenderAttributes = {},
@@ -82,6 +91,7 @@ const renderHelper = (
 
 export default defineComponent({
   name: 'virtualList',
+  emits: ['scroll', 'scrollEnd', 'scrolling', 'scrollDown'],
   props: {
     listData: {
       type: Array as PropType<unknown[]>,
@@ -110,6 +120,8 @@ export default defineComponent({
     },
   },
   setup(props, { slots, emit, expose }) {
+    let scrollTopCache = 0
+    let haveScrollWidth = false
     const virtualList: Ref<HTMLElement | null> = ref(null)
     const phantom: Ref<HTMLElement | null> = ref(null)
     const content: Ref<HTMLElement | null> = ref(null)
@@ -125,6 +137,8 @@ export default defineComponent({
     const ready = ref(false)
     const active = ref(true)
     let resizer: ResizeObserver | null = null
+    let startRenderTimer: ReturnType<typeof setTimeout> | null = null
+    const scrollToIndexTimers = new Set<ReturnType<typeof setTimeout>>()
 
     const elm: ComputedRef<HTMLElement | null> = computed(() => virtualList.value)
     const indexedListData = computed<IndexedListItem[]>(() => {
@@ -211,7 +225,7 @@ export default defineComponent({
     }
 
     const scrollDownEvent = debounce((scrollHeight: number): void => {
-      if (scrollHeight === getScrollHeight()) emit('scrollDown')
+      if (active.value && scrollHeight === getScrollHeight()) emit('scrollDown')
     }, 100)
 
     const scrollEnd = debounce((event: ScrollEvent, data: ScrollData): void => {
@@ -224,6 +238,7 @@ export default defineComponent({
     }
 
     const scrollEvent = (event: ScrollEvent, force = false): void => {
+      if (!active.value) return
       const element = event.target instanceof HTMLElement ? event.target : null
       if (!element) return
 
@@ -292,16 +307,24 @@ export default defineComponent({
 
     const handleResize = (): void => {
       const element = elm.value
-      if (!active.value || !element?.offsetHeight) {
+      if (!active.value || !element) {
         preventAutoScroll.value = false
         return
       }
       const scrollWidthExists = hasHorizontalScrollbar(element)
-      if (haveScrollWidth === scrollWidthExists) return
-      haveScrollWidth = scrollWidthExists
+      if (haveScrollWidth !== scrollWidthExists) {
+        haveScrollWidth = scrollWidthExists
+      }
       getSizeInfo()
-      void nextTick(() => scrollEvent({ target: element }, true))
+      start.value = getStartIndex(element.scrollTop)
+      end.value = start.value + visibleCount.value
+      setStartOffset()
+      void nextTick(() => {
+        if (active.value) scrollEvent({ target: element }, true)
+      })
     }
+
+    const resizeHandler = debounce(() => handleResize(), 100)
 
     const afterRenderUpdated = (): void => {
       if (props.listData.length === 0) {
@@ -317,8 +340,9 @@ export default defineComponent({
       animation = true,
       first = true,
     ): Promise<void> => {
-      if (index < 0 || preventAutoScroll.value) return
+      if (!active.value || index < 0 || preventAutoScroll.value) return
       if (first) await nextTick()
+      if (!active.value) return
 
       const element = elm.value
       if (!element) return
@@ -341,6 +365,7 @@ export default defineComponent({
       if (scrollTop >= currentTop && itemBottom <= viewBottom) return
 
       await nextTick()
+      if (!active.value) return
       scrollTop = Math.min(
         scrollTop,
         getScrollHeight() - element.clientHeight,
@@ -360,38 +385,49 @@ export default defineComponent({
       const currentScrollTop = Math.floor(element.scrollTop)
       const differs = Math.abs(currentScrollTop - scrollTop) > props.itemHeight / 2
       const timer = setTimeout(() => {
-        clearTimeout(timer)
+        scrollToIndexTimers.delete(timer)
+        if (!active.value) return
         if (currentScrollTop !== scrollTop && !lockScroll.value && differs) {
           void scrollToIndex(index, animation, false)
         } else if (currentScrollTop === scrollTop) {
           unlockScroll()
         }
       }, 100)
+      scrollToIndexTimers.add(timer)
     }
 
     onMounted(() => {
       void nextTick(() => {
+        if (!active.value) return
         ready.value = true
         startRender()
         if (!screenHeight.value) {
-          const timer = setTimeout(() => {
+          startRenderTimer = setTimeout(() => {
+            startRenderTimer = null
+            if (!active.value) return
             startRender()
-            clearTimeout(timer)
           }, 100)
         }
       })
 
       const element = elm.value
       if (element) {
-        resizer = new ResizeObserver(debounce(() => handleResize(), 100))
+        resizer = new ResizeObserver(resizeHandler)
         resizer.observe(element)
       }
     })
 
     onBeforeUnmount(() => {
-      scrollTopCache = 0
+      active.value = false
       resizer?.disconnect()
       resizer = null
+      resizeHandler.cancel()
+      scrollEnd.cancel()
+      scrollDownEvent.cancel()
+      if (startRenderTimer) clearTimeout(startRenderTimer)
+      startRenderTimer = null
+      for (const timer of scrollToIndexTimers) clearTimeout(timer)
+      scrollToIndexTimers.clear()
       if (lockTimer.value) clearTimeout(lockTimer.value)
       lockTimer.value = null
     })
