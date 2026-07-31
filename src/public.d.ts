@@ -1,16 +1,13 @@
-import type { DefineComponent } from 'vue'
+import type { Component } from 'vue'
 
 export interface VueVirtualTreeRegistrar {
-  component(name: string, component: unknown): unknown
+  component(name: string, component: Component): unknown
 }
 
-export type VueVirtualTreeComponent = DefineComponent<
-  Record<string, unknown>,
-  Record<string, unknown>,
-  unknown
-> & {
+export type VueVirtualTreePlugin = Component & {
+  name?: string
   install(appOrVue: VueVirtualTreeRegistrar): void
 }
 
-export declare const VueVirtualTree: VueVirtualTreeComponent
+export declare const VueVirtualTree: VueVirtualTreePlugin
 export default VueVirtualTree

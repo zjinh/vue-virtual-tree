@@ -10,10 +10,9 @@ import {
   onDeactivated,
   onUpdated,
   nextTick,
-  watch,
-  Ref,
-  ComputedRef
+  watch
 } from 'vue'
+import type { ComputedRef, Ref, SetupContext } from 'vue'
 
 // 定高虚拟列表不再需要PosData接口
 interface ScrollData {
@@ -25,7 +24,7 @@ interface ScrollData {
 }
 const _ = {
   debounce(func: Function, wait = 50, immediate = false) {
-    let timer: number | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
     let result: any = null;
     return function (...args: any) {
       if (timer) {
@@ -102,7 +101,7 @@ export default {
       },
     },
   },
-  setup(props: any, { slots, emit, expose }) {
+  setup(props: any, { slots, emit, expose }: SetupContext) {
     // refs
     const virtualList: Ref<HTMLElement | null> = ref(null);
     const phantom: Ref<HTMLElement | null> = ref(null);
@@ -113,7 +112,7 @@ export default {
     const end = ref(0);
     const startOffset = ref(0);
     const lockScroll = ref(false);
-    const lockTimer: Ref<number | null> = ref(null);
+    const lockTimer: Ref<ReturnType<typeof setTimeout> | null> = ref(null);
     const oldScrollTop = ref(0);
     const preventAutoScroll = ref(false);
     const lastDirection = ref('');

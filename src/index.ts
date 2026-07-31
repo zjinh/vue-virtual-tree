@@ -2,20 +2,20 @@ import type { Component } from 'vue'
 
 import TreeComponent from './index.vue'
 
-interface ComponentRegistrar {
+export interface VueVirtualTreeRegistrar {
   component(name: string, component: Component): unknown
 }
 
 export type VueVirtualTreePlugin = Component & {
   name?: string
-  install(appOrVue: ComponentRegistrar): void
+  install(appOrVue: VueVirtualTreeRegistrar): void
 }
 
-const VueVirtualTree = TreeComponent as VueVirtualTreePlugin
-
-VueVirtualTree.install = (appOrVue) => {
-  appOrVue.component(VueVirtualTree.name || 'VueVirtualTree', VueVirtualTree)
-}
+const VueVirtualTree: VueVirtualTreePlugin = Object.assign(TreeComponent, {
+  install(appOrVue: VueVirtualTreeRegistrar) {
+    appOrVue.component(TreeComponent.name || 'VueVirtualTree', TreeComponent)
+  },
+})
 
 export { VueVirtualTree }
 export default VueVirtualTree

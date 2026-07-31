@@ -11,6 +11,11 @@ import { defineConfig } from 'tsdown'
 import Vue from 'unplugin-vue/rolldown'
 import * as vue2Compiler from 'vue2/compiler-sfc'
 
+type Vue2PluginOptions = NonNullable<Parameters<typeof vue2>[0]>
+const vue2CompilerForPlugin = vue2Compiler as unknown as NonNullable<
+  Vue2PluginOptions['compiler']
+>
+
 const shared = {
   entry: {
     index: 'src/index.ts',
@@ -60,7 +65,7 @@ export default defineConfig([
     ...shared,
     outDir: 'dist/vue2',
     clean: true,
-    plugins: [vue2({ compiler: vue2Compiler }), publishContract('vue2')],
+    plugins: [vue2({ compiler: vue2CompilerForPlugin }), publishContract('vue2')],
   },
   {
     ...shared,

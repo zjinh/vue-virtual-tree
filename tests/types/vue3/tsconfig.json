@@ -5,12 +5,8 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "strict": true,
-    "skipLibCheck": true,
-    "types": ["node"],
-    "allowJs": true,
-    "checkJs": false,
     "noEmit": true,
-    "isolatedModules": true
+    "skipLibCheck": false
   },
-  "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.vue", "tsdown.config.ts"]
+  "include": ["./index.ts"]
 }
