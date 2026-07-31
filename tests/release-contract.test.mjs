@@ -78,6 +78,14 @@ test('keeps release tarball preparation and checks in dedicated scripts', async 
   assert.match(packScript, /process\.execPath/)
   assert.match(packScript, /process\.env\.npm_execpath/)
 
+  const tarballContract = await readFile(
+    new URL('tests/tarball-contract.test.mjs', root),
+    'utf8',
+  )
+  assert.match(tarballContract, /createIsolatedPnpmConfigArgs/)
+  assert.match(tarballContract, /--config\.userconfig=/)
+  assert.match(tarballContract, /--config\.globalconfig=/)
+
   const attwScript = await readFile(new URL('scripts/check-attw.mjs', root), 'utf8')
   assert.match(attwScript, /@arethetypeswrong\/cli/)
   assert.match(attwScript, /releaseTarballPath/)

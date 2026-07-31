@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import test from 'node:test'
-import { createIsolatedNpmEnvironment } from '../scripts/isolated-npm-environment.mjs'
+import {
+  createIsolatedNpmEnvironment,
+  createIsolatedPnpmConfigArgs,
+} from '../scripts/isolated-npm-environment.mjs'
 import { releaseTarballPath } from '../scripts/release-tarball.mjs'
 
 const run = promisify(execFile)
@@ -128,11 +131,21 @@ async function verifyConsumer(runtime, version) {
     const pnpmCli = process.env.npm_execpath
     assert.ok(pnpmCli, 'npm_execpath must point to the pnpm JavaScript CLI')
     const environment = await createIsolatedNpmEnvironment(process.env, consumerRoot)
+    const pnpmConfigArgs = createIsolatedPnpmConfigArgs(environment)
+    assert.ok(pnpmConfigArgs.some((argument) => argument.startsWith('--config.userconfig=')))
+    assert.ok(pnpmConfigArgs.some((argument) => argument.startsWith('--config.globalconfig=')))
 
-    await run(process.execPath, [pnpmCli, 'install', '--frozen-lockfile=false', '--ignore-scripts'], {
-      cwd: consumerRoot,
-      env: environment,
-    })
+    await run(
+      process.execPath,
+      [
+        pnpmCli,
+        ...pnpmConfigArgs,
+        'install',
+        '--frozen-lockfile=false',
+        '--ignore-scripts',
+      ],
+      { cwd: consumerRoot, env: environment },
+    )
     await run(process.execPath, ['runtime.mjs'], { cwd: consumerRoot, env: environment })
     await run(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'], {
       cwd: consumerRoot,
