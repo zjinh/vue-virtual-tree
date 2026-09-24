@@ -2,6 +2,8 @@
 
 # @zjinh/vue-virtual-tree
 
+[![npm version](https://img.shields.io/npm/v/%40zjinh%2Fvue-virtual-tree)](https://www.npmjs.com/package/@zjinh/vue-virtual-tree)
+
 <!-- section:about -->
 
 一个同时支持 Vue 2.7 与 Vue 3 的固定行高虚拟树组件。它通过只挂载视口内的行来处理大规模树数据，并提供复选、当前节点、过滤、懒加载、数据修改方法和自定义行内容等常用能力。

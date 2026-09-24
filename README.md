@@ -2,6 +2,8 @@
 
 # @zjinh/vue-virtual-tree
 
+[![npm version](https://img.shields.io/npm/v/%40zjinh%2Fvue-virtual-tree)](https://www.npmjs.com/package/@zjinh/vue-virtual-tree)
+
 <!-- section:about -->
 
 A fixed-row-height virtual tree for Vue 2.7 and Vue 3. It handles large trees by mounting only the rows inside the viewport, while keeping checkbox selection, current-node state, filtering, lazy loading, mutation methods, and custom row content in one API.
