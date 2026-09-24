@@ -1,28 +1,38 @@
 <template>
-  <div class="app-shell" :data-theme="theme">
+  <div class="app-shell" :data-theme="theme" :class="{ 'is-embedded': embedded }">
     <header class="app-header">
       <div class="brand-line">
         <span class="brand-mark" aria-hidden="true">VT</span>
         <div>
           <p class="eyebrow">@zjinh/vue-virtual-tree</p>
-          <h1>API workbench</h1>
+          <h1>Virtual Tree</h1>
         </div>
         <span class="runtime-badge">{{ runtimeName }}</span>
       </div>
       <div class="header-actions">
-        <span class="runtime-context">{{ nodeScaleLabel }} · {{ browserLabel }}</span>
+        <a class="repo-link" href="https://github.com/zjinh/vue-virtual-tree" target="_blank" rel="noreferrer">GitHub ↗</a>
+        <div class="language-switch" role="group" :aria-label="t('Language')">
+          <button type="button" lang="zh-CN" :aria-pressed="locale === 'zh'" @click="setLocale('zh')">中文</button>
+          <button type="button" lang="en" :aria-pressed="locale === 'en'" @click="setLocale('en')">EN</button>
+        </div>
         <button class="button button-muted" type="button" @click="toggleTheme">
-          {{ theme === 'dark' ? 'Use light theme' : 'Use dark theme' }}
+          {{ t(theme === 'dark' ? 'Light theme' : 'Dark theme') }}
         </button>
       </div>
     </header>
 
+    <section class="demo-intro">
+      <div><p class="intro-label">{{ runtimeName }} · {{ t('Component demo') }}</p>
+        <h2>{{ t('Virtual tree demo') }}</h2>
+        <p>{{ t('Try filtering, selection and lazy loading. Adjust the settings and inspect each result.') }}</p>
+      </div>
+      <a class="intro-link" href="#tree-heading">{{ t('View tree') }} ↓</a>
+    </section>
     <main class="workbench-grid">
       <aside class="panel props-panel" aria-labelledby="props-heading">
         <div class="panel-heading sticky-heading">
           <div>
-            <p class="section-kicker">Contract</p>
-            <h2 id="props-heading">Props <span class="count">21 + 1</span></h2>
+            <h2 id="props-heading">{{ t('Settings') }} <span class="count">21 + 1</span></h2>
           </div>
           <button
             class="button button-primary"
@@ -30,11 +40,11 @@
             :disabled="busy"
             @click="applyAndRemount"
           >
-            Apply / Remount
+            {{ t('Apply settings') }}
           </button>
         </div>
         <p class="panel-note">
-          Initialization-only values are applied by remounting the real component.
+          {{ t('Apply settings to rebuild the tree with these values.') }}
         </p>
 
         <div class="prop-list">
@@ -49,8 +59,8 @@
           >
             <div class="prop-meta">
               <code :id="propLabelId(prop.name)">{{ prop.name }}</code>
-              <span v-if="prop.initializationOnly" class="tag">remount</span>
-              <span v-if="prop.support === 'unsupported'" class="tag tag-danger">unsupported</span>
+              <span v-if="prop.initializationOnly" class="tag">{{ t('remount') }}</span>
+              <span v-if="prop.support === 'unsupported'" class="tag tag-danger">{{ t('unsupported') }}</span>
             </div>
             <div class="prop-control">
               <label v-if="prop.control === 'boolean'" class="switch-control">
@@ -89,20 +99,19 @@
               <span v-else class="fixed-value">{{ displayPropValue(prop.name) }}</span>
             </div>
             <p :id="propDescriptionId(prop.name)" class="prop-detail">
-              {{ prop.type }} · default {{ prop.defaultValue }}<span v-if="prop.note"> · {{ prop.note }}</span>
+              {{ prop.type }} · {{ t('Default') }} {{ t(prop.defaultValue) }}<span v-if="prop.note"> · {{ t(prop.note) }}</span>
             </p>
           </div>
         </div>
       </aside>
 
-      <section class="center-column" aria-label="Tree and performance experiments">
+      <section class="center-column" :aria-label="t('Tree preview and performance')">
         <section class="panel tree-panel" aria-labelledby="tree-heading">
           <div class="panel-heading tree-heading">
             <div>
-              <p class="section-kicker">Live component</p>
-              <h2 id="tree-heading">Virtual tree</h2>
+              <h2 id="tree-heading">{{ t('Virtual tree') }}</h2>
             </div>
-            <div class="dataset-actions" aria-label="Dataset presets">
+            <div class="dataset-actions" :aria-label="t('Dataset presets')">
               <button
                 class="button button-muted compact-button content-mode-button"
                 type="button"
@@ -110,12 +119,13 @@
                 :disabled="busy"
                 @click="toggleNodeContentMode"
               >
-                {{ customSlotEnabled ? 'Scoped slot content' : 'Built-in node content' }}
+                {{ t(customSlotEnabled ? 'Custom content' : 'Default content') }}
               </button>
               <button
                 v-for="preset in presets"
                 :key="preset"
                 class="button button-muted compact-button"
+                :aria-pressed="totalNodes === preset && !appliedOptions.lazy"
                 type="button"
                 :disabled="busy"
                 @click="loadDataset(preset)"
@@ -127,18 +137,18 @@
 
           <div class="tree-toolbar">
             <label class="field-group grow-field">
-              <span>Filter</span>
-              <input v-model="filterQuery" type="search" placeholder="Filter labels">
+              <span>{{ t('Filter') }}</span>
+              <input v-model="filterQuery" type="search" :placeholder="t('Search node labels')">
             </label>
             <label class="field-group target-field">
-              <span>Target key</span>
+              <span>{{ t('Target key') }}</span>
               <input v-model="targetKey" type="text">
             </label>
             <button class="button button-primary toolbar-button" type="button" :disabled="busy" @click="runNamedMethod('filter')">
-              Run filter
+              {{ t('Filter') }}
             </button>
             <button class="button button-muted toolbar-button" type="button" :disabled="busy" @click="resetScenario">
-              Reset
+              {{ t('Reset') }}
             </button>
           </div>
 
@@ -149,6 +159,7 @@
                 :key="`custom-${treeVersion}`"
                 ref="tree"
                 v-bind="treeBindings"
+                :empty-text="localizedEmptyText"
                 @node-click="onNodeClick"
                 @node-contextmenu="onNodeContextmenu"
                 @current-change="onCurrentChange"
@@ -169,13 +180,13 @@
                       type="checkbox"
                       :checked="node.checked"
                       :disabled="Boolean(node.disabled)"
-                      :aria-label="`Select ${item.label}`"
+                      :aria-label="t('Select {label}', { label: item.label })"
                       @click.stop
                       @change.stop="applySlotSelection(selectChange, $event)"
                     >
                     <span class="node-label">{{ item.label }}</span>
                     <code class="node-key">{{ item.id }}</code>
-                    <span v-if="node.loading" class="node-state">loading</span>
+                    <span v-if="node.loading" class="node-state">{{ t('loading') }}</span>
                   </div>
                 </template>
               </vue-virtual-tree>
@@ -185,6 +196,7 @@
                 :key="`default-${treeVersion}`"
                 ref="tree"
                 v-bind="treeBindings"
+                :empty-text="localizedEmptyText"
                 @node-click="onNodeClick"
                 @node-contextmenu="onNodeContextmenu"
                 @current-change="onCurrentChange"
@@ -195,75 +207,67 @@
               ></vue-virtual-tree>
             </div>
           </div>
-          <p class="slot-note">
-            <template v-if="customSlotEnabled">
-              Scoped slot mode renders every visible row and its checkbox calls
-              <code>selectChange(checked)</code>. Switch to built-in content to test expand events and iconClass.
-            </template>
-            <template v-else>
-              Built-in node content uses the component's expand control, so node-expand and node-collapse
-              are emitted by the real component path. Current iconClass: <code>{{ appliedOptions.iconClass || 'not set' }}</code>.
-            </template>
-          </p>
+          <p class="slot-note">{{ t(customSlotEnabled
+            ? 'Custom rows use the default scoped slot. Switch to default content to try expand and collapse events.'
+            : 'Expand a node or select its checkbox. Actions and results appear below.') }}</p>
         </section>
 
         <section class="panel performance-panel" aria-labelledby="performance-heading">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">Measured in this browser</p>
-              <h2 id="performance-heading">Performance laboratory</h2>
+              <h2 id="performance-heading">{{ t('Performance') }}</h2>
             </div>
-            <time class="measurement-time">{{ measurementTime || 'Not measured' }}</time>
+            <time class="measurement-time">{{ measurementTime || t('Not measured') }}</time>
           </div>
 
           <dl class="metric-grid">
             <div>
-              <dt>Logical nodes</dt>
+              <dt>{{ t('Total nodes') }}</dt>
               <dd>{{ formatNumber(totalNodes) }}</dd>
             </div>
             <div>
-              <dt>Rendered DOM rows</dt>
+              <dt>{{ t('Rendered rows') }}</dt>
               <dd>{{ formatNumber(renderedNodes) }}</dd>
             </div>
             <div>
-              <dt>Virtualized</dt>
-              <dd>{{ virtualizationRatio === null ? 'N/A' : `${virtualizationRatio}%` }}</dd>
+              <dt>{{ t('Rows not rendered') }}</dt>
+              <dd>{{ virtualizationRatio === null ? t('N/A') : `${virtualizationRatio}%` }}</dd>
             </div>
             <div>
-              <dt>JS heap</dt>
+              <dt>{{ t('JS heap') }}</dt>
               <dd>{{ memoryLabel }}</dd>
             </div>
           </dl>
 
-          <div class="benchmark-actions" aria-label="Performance operations">
-            <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('filter')">Measure filter</button>
-            <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('setCheckedAll')">Measure setCheckedAll</button>
-            <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('scrollToItem')">Measure scrollToItem completion</button>
-            <button class="button button-primary" type="button" :disabled="busy" @click="sampleScrollFrames">Sample scroll frames</button>
+          <div class="benchmark-actions" :aria-label="t('Performance operations')">
+            <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('filter')">{{ t('Time filter') }}</button>
+            <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('setCheckedAll')">{{ t('Time setCheckedAll') }}</button>
+            <button class="button button-muted" type="button" :disabled="busy" @click="measureTreeMethod('scrollToItem')">{{ t('Time scrollToItem') }}</button>
+            <button class="button button-primary" type="button" :disabled="busy" @click="sampleScrollFrames">{{ t('Measure scrolling') }}</button>
           </div>
 
           <div class="benchmark-table-wrap">
             <table class="benchmark-table">
               <thead>
-                <tr><th>Operation</th><th>Duration</th><th>Observed result</th></tr>
+                <tr><th>{{ t('Operation') }}</th><th>{{ t('Duration') }}</th><th>{{ t('Result') }}</th></tr>
               </thead>
               <tbody>
-                <tr v-if="benchmarks.length === 0"><td colspan="3">Run a dataset or operation to collect local measurements.</td></tr>
+                <tr v-if="benchmarks.length === 0"><td colspan="3">{{ t('Choose a dataset or run an operation to see its timing.') }}</td></tr>
                 <tr v-for="entry in benchmarks" :key="entry.id">
-                  <td>{{ entry.name }}</td>
+                  <td>{{ t(entry.name) }}</td>
                   <td><code>{{ formatDuration(entry.durationMs) }}</code></td>
-                  <td>{{ entry.detail }}</td>
+                  <td>{{ t(entry.detail, entry.values) }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
           <div class="frame-summary">
-            <span>Frames <strong>{{ frameSummary.frameCount }}</strong></span>
-            <span>p95 <strong>{{ frameSummary.p95Ms === null ? 'N/A' : formatDuration(frameSummary.p95Ms) }}</strong></span>
-            <span>Long frames <strong>{{ frameSummary.longFrames }}</strong></span>
+            <span>{{ t('Frames') }} <strong>{{ frameSummary.frameCount }}</strong></span>
+            <span>p95 <strong>{{ frameSummary.p95Ms === null ? t('N/A') : formatDuration(frameSummary.p95Ms) }}</strong></span>
+            <span>{{ t('Long frames') }} <strong>{{ frameSummary.longFrames }}</strong></span>
           </div>
-          <p class="runtime-footnote">{{ runtimeName }} · {{ browserLabel }} · {{ nodeScaleLabel }} · local high-resolution timer</p>
+          <p class="runtime-footnote">{{ runtimeName }} · {{ browserLabel }} · {{ nodeScaleLabel }} · {{ t('Measured in this browser') }}</p>
         </section>
       </section>
 
@@ -271,13 +275,12 @@
         <section class="panel method-panel" aria-labelledby="methods-heading">
           <div class="panel-heading sticky-heading">
             <div>
-              <p class="section-kicker">Real component ref</p>
-              <h2 id="methods-heading">Methods <span class="count">23</span></h2>
+              <h2 id="methods-heading">{{ t('Methods') }} <span class="count">23</span></h2>
             </div>
           </div>
           <div class="method-groups">
             <section v-for="group in methodGroups" :key="group.name" class="method-group">
-              <h3>{{ group.name }}</h3>
+              <h3>{{ t(group.name) }}</h3>
               <button
                 v-for="method in group.methods"
                 :key="method.name"
@@ -287,7 +290,7 @@
                 @click="runNamedMethod(method.name)"
               >
                 <span><code>{{ method.name }}</code><small>{{ method.signature }}</small></span>
-                <span aria-hidden="true">Run</span>
+                <span aria-hidden="true">{{ t('Run') }}</span>
               </button>
             </section>
           </div>
@@ -296,16 +299,16 @@
         <section class="panel output-panel" aria-labelledby="results-heading">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">Bounded to 40</p>
-              <h2 id="results-heading">Method results</h2>
+              <p class="section-kicker">{{ t('Last 40 results') }}</p>
+              <h2 id="results-heading">{{ t('Method results') }}</h2>
             </div>
-            <button class="text-button" type="button" @click="methodResults = []">Clear</button>
+            <button class="text-button" type="button" @click="methodResults = []">{{ t('Clear') }}</button>
           </div>
           <ol class="log-list method-results" aria-live="polite">
-            <li v-if="methodResults.length === 0" class="empty-log">No method executed.</li>
+            <li v-if="methodResults.length === 0" class="empty-log">{{ t('Run a method to see its return value.') }}</li>
             <li v-for="result in methodResults" :key="result.id" :class="{ 'has-error': result.error }">
               <div><code>{{ result.name }}</code><time>{{ result.time }}</time></div>
-              <p>{{ result.error ? 'Error' : 'Return' }} · {{ result.value }}</p>
+              <p>{{ t(result.error ? 'Error' : 'Return') }} · {{ result.value }}</p>
               <small>{{ formatDuration(result.durationMs) }}</small>
             </li>
           </ol>
@@ -314,13 +317,13 @@
         <section class="panel output-panel" aria-labelledby="events-heading">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">7 listeners · bounded to 80</p>
-              <h2 id="events-heading">Event log</h2>
+              <p class="section-kicker">{{ t('Last 80 events') }}</p>
+              <h2 id="events-heading">{{ t('Event log') }}</h2>
             </div>
-            <button class="text-button" type="button" @click="eventLog = []">Clear</button>
+            <button class="text-button" type="button" @click="eventLog = []">{{ t('Clear') }}</button>
           </div>
           <ol class="log-list event-results" aria-live="polite">
-            <li v-if="eventLog.length === 0" class="empty-log">Interact with a node to inspect emitted payloads.</li>
+            <li v-if="eventLog.length === 0" class="empty-log">{{ t('Select or expand a node to see its events.') }}</li>
             <li v-for="event in eventLog" :key="event.id">
               <div><code>{{ event.name }}</code><time>{{ event.time }}</time></div>
               <p>{{ event.payload }}</p>
@@ -334,6 +337,9 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue'
+import { demoLocale } from './locale.js'
+import type { Locale } from './locale'
+import { translate } from './messages'
 import type { VueVirtualTreeInstance } from '@zjinh/vue-virtual-tree'
 
 import { TREE_EVENTS, TREE_METHODS, TREE_PROPS } from './api-manifest'
@@ -381,6 +387,7 @@ interface BenchmarkEntry {
   name: string
   durationMs: number
   detail: string
+  values: Record<string, string | number>
 }
 
 interface ResultEntry {
@@ -528,6 +535,8 @@ export default defineComponent({
 
     return {
       runtimeName: __DEMO_RUNTIME__,
+      locale: demoLocale.read() as Locale,
+      embedded: window.parent !== window,
       theme: preferredTheme,
       treeProps: TREE_PROPS,
       treeEvents: TREE_EVENTS,
@@ -568,10 +577,13 @@ export default defineComponent({
     }
   },
   computed: {
+    localizedEmptyText(): string {
+      return this.appliedOptions.emptyText === 'No matching package nodes'
+        ? this.t('No matching nodes') : this.appliedOptions.emptyText
+    },
     treeBindings(): Record<string, unknown> {
       return {
         data: this.treeData,
-        emptyText: this.appliedOptions.emptyText,
         nodeKey: 'id',
         checkStrictly: this.appliedOptions.checkStrictly,
         defaultExpandAll: this.appliedOptions.defaultExpandAll,
@@ -605,23 +617,56 @@ export default defineComponent({
       return `${match[1] === 'Version' ? 'Safari' : match[1]} ${match[2]}`
     },
     nodeScaleLabel(): string {
-      return `${this.formatCompact(this.totalNodes)} logical nodes`
+      return this.t('{count} nodes', { count: this.formatCompact(this.totalNodes) })
     },
     memoryLabel(): string {
-      if (this.memoryBytes === null) return 'N/A'
+      if (this.memoryBytes === null) return this.t('N/A')
       return `${(this.memoryBytes / 1024 / 1024).toFixed(1)} MiB`
     },
   },
   mounted() {
+    this.applyLocale()
+    window.addEventListener('storage', this.onLocaleStorage)
+    window.addEventListener('message', this.onLocaleMessage)
     void this.refreshObservedMetrics()
   },
   beforeDestroy() {
     this.cleanupAsyncWork()
+    window.removeEventListener('storage', this.onLocaleStorage)
+    window.removeEventListener('message', this.onLocaleMessage)
   },
   beforeUnmount() {
     this.cleanupAsyncWork()
+    window.removeEventListener('storage', this.onLocaleStorage)
+    window.removeEventListener('message', this.onLocaleMessage)
   },
   methods: {
+    t(message: string, values: Record<string, string | number> = {}): string {
+      return translate(this.locale, message, values)
+    },
+    setLocale(locale: Locale): void {
+      this.locale = locale
+      demoLocale.save(locale)
+      this.applyLocale()
+      if (window.parent !== window) window.parent.postMessage({ source: '@zjinh/vue-virtual-tree/demo', type: 'locale', locale }, window.location.origin)
+    },
+    onLocaleMessage(event: MessageEvent): void {
+      if (event.source !== window.parent || event.origin !== window.location.origin
+        || event.data?.source !== '@zjinh/vue-virtual-tree/demo' || event.data.type !== 'locale'
+        || !['zh', 'en'].includes(event.data.locale)) return
+      this.locale = event.data.locale
+      demoLocale.save(this.locale)
+      this.applyLocale()
+    },
+    onLocaleStorage(event: StorageEvent): void {
+      if (event.key !== demoLocale.key && event.key !== null) return
+      this.locale = demoLocale.read()
+      this.applyLocale()
+    },
+    applyLocale(): void {
+      document.documentElement.lang = this.locale === 'zh' ? 'zh-CN' : 'en'
+      document.title = `${this.runtimeName} · ${this.t('Virtual tree demo')}`
+    },
     propRowId(name: string): string {
       return `prop-row-${name}`
     },
@@ -714,14 +759,14 @@ export default defineComponent({
     },
     displayPropValue(name: string): string {
       const values: Record<string, string> = {
-        data: `${this.formatCompact(this.totalNodes)} generated nodes`,
+        data: this.t('{count} nodes', { count: this.formatCompact(this.totalNodes) }),
         nodeKey: 'id',
         props: '{ label, children, disabled, isLeaf }',
-        load: 'lazy resolver',
-        filterNodeMethod: 'case-insensitive label match',
-        renderContent: 'Use default scoped slot',
+        load: this.t('Loads children on expand'),
+        filterNodeMethod: this.t('Matches node labels'),
+        renderContent: this.t('Use the default scoped slot'),
       }
-      return values[name] ?? 'Configured by scenario'
+      return values[name] ?? this.t('Set by the dataset')
     },
     parseKeyList(value: string | number | boolean): string[] {
       if (typeof value !== 'string') return []
@@ -764,13 +809,13 @@ export default defineComponent({
     },
     async loadDataset(total: number): Promise<void> {
       if (this.busy) return
-      const busyOwner = this.beginBusy(`Generating ${this.formatNumber(total)} nodes`)
+      const busyOwner = this.beginBusy(this.t('Generating {count} nodes', { count: this.formatNumber(total) }))
       try {
         const generation = this.beginTreeGeneration()
         const generationStart = performance.now()
         const data = generateTreeData(total)
         const generationDuration = performance.now() - generationStart
-        this.addBenchmark('generate data', generationDuration, `${countTreeNodes(data)} deterministic nodes`)
+        this.addBenchmark('generate data', generationDuration, '{count} nodes', { count: countTreeNodes(data) })
 
         this.draftOptions.lazy = false
         this.draftOptions.defaultExpandAll = true
@@ -783,7 +828,7 @@ export default defineComponent({
         this.treeVersion += 1
         if (!await this.waitForStablePaint(generation)) return
         const commitDuration = performance.now() - commitStart
-        this.addBenchmark('submit → stable paint', commitDuration, `${this.formatCompact(total)} logical nodes`)
+        this.addBenchmark('submit → stable paint', commitDuration, '{count} nodes', { count: this.formatCompact(total) })
         await this.refreshObservedMetrics(generation)
       } catch (error) {
         this.recordMethodResult('loadDataset', performance.now(), undefined, error)
@@ -824,7 +869,7 @@ export default defineComponent({
     },
     getTree(): VueVirtualTreeInstance<DemoTreeNode> {
       const tree = this.$refs.tree as VueVirtualTreeInstance<DemoTreeNode> | undefined
-      if (!tree) throw new Error('Tree ref is not mounted')
+      if (!tree) throw new Error(this.t('The tree is not ready'))
       return tree
     },
     createMutationNode(label: string): DemoTreeNode {
@@ -837,6 +882,7 @@ export default defineComponent({
     },
     getActionContext(): MethodActionContext {
       const tree = this.getTree()
+      const missingTarget = this.t('Node {key} was not found', { key: this.targetKey })
       return {
         tree,
         targetKey: this.targetKey,
@@ -844,7 +890,7 @@ export default defineComponent({
         createMutationNode: (label: string) => this.createMutationNode(label),
         get targetNode(): DemoTreeNode {
           const targetNode = tree.getNode(this.targetKey)?.data
-          if (!targetNode) throw new Error(`Target ${this.targetKey} is not present in the current data`)
+          if (!targetNode) throw new Error(missingTarget)
           return targetNode
         },
       }
@@ -853,12 +899,12 @@ export default defineComponent({
       const action = METHOD_ACTIONS[name]
       const startedAt = performance.now()
       if (!action) {
-        this.recordMethodResult(name, startedAt, undefined, new Error('No registered action'))
+        this.recordMethodResult(name, startedAt, undefined, new Error(this.t('Unknown method')))
         return
       }
       if (this.busy) return
       const busyOwner = this.totalNodes >= 50_000
-        ? this.beginBusy(`Running ${name} on ${this.formatCompact(this.totalNodes)} nodes`)
+        ? this.beginBusy(this.t('Running {name} · {count} nodes', { name, count: this.formatCompact(this.totalNodes) }))
         : null
       try {
         const generation = this.workGeneration
@@ -887,11 +933,11 @@ export default defineComponent({
       const benchmarkName = name === 'scrollToItem' ? 'scrollToItem completion' : name
       if (lastResult?.name === name) {
         const detail = name === 'scrollToItem' && !lastResult.error
-          ? `internal 50 ms positioning completed; return ${lastResult.value}`
-          : lastResult.error ? lastResult.value : `return ${lastResult.value}`
-        this.addBenchmark(benchmarkName, stableDuration, detail)
+          ? 'Includes the 50 ms positioning delay; return {value}'
+          : lastResult.error ? lastResult.value : 'Return {value}'
+        this.addBenchmark(benchmarkName, stableDuration, detail, { value: lastResult.value })
       } else {
-        this.addBenchmark(benchmarkName, stableDuration, 'No result entry observed')
+        this.addBenchmark(benchmarkName, stableDuration, 'No result recorded')
       }
     },
     recordMethodResult(name: string, startedAt: number, value?: unknown, caughtError?: unknown): void {
@@ -921,9 +967,9 @@ export default defineComponent({
         return `Serialization error: ${error instanceof Error ? error.message : String(error)}`
       }
     },
-    addBenchmark(name: string, durationMs: number, detail: string): void {
+    addBenchmark(name: string, durationMs: number, detail: string, values: Record<string, string | number> = {}): void {
       this.benchmarkSequence += 1
-      this.benchmarks = [{ id: this.benchmarkSequence, name, durationMs, detail }, ...this.benchmarks].slice(0, 20)
+      this.benchmarks = [{ id: this.benchmarkSequence, name, durationMs, detail, values }, ...this.benchmarks].slice(0, 20)
       this.measurementTime = new Date().toLocaleString()
     },
     async refreshObservedMetrics(generation?: number): Promise<void> {
@@ -940,14 +986,14 @@ export default defineComponent({
       if (this.busy) return
       const scroller = document.querySelector<HTMLElement>('.tree-frame .virtual-tree')
       if (!scroller) {
-        this.recordMethodResult('scroll frame sample', performance.now(), undefined, new Error('Virtual list scroller not found'))
+        this.recordMethodResult('scroll frame sample', performance.now(), undefined, new Error(this.t('The scroll area is not ready')))
         return
       }
       const startScrollTop = scroller.scrollTop
       const maxScrollTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
       if (maxScrollTop <= 0) return
 
-      const busyOwner = this.beginBusy('Sampling one virtual-list scroll')
+      const busyOwner = this.beginBusy(this.t('Measuring scroll frames'))
       try {
         const generation = this.workGeneration
         const frames: number[] = []
@@ -969,7 +1015,8 @@ export default defineComponent({
         this.addBenchmark(
           'scroll frame sample',
           performance.now() - sampleStart,
-          `${frames.length} frames; ${this.frameSummary.longFrames} over 50 ms`,
+          '{count} frames; {long} over 50 ms',
+          { count: frames.length, long: this.frameSummary.longFrames },
         )
         await this.refreshObservedMetrics(generation)
       } finally {

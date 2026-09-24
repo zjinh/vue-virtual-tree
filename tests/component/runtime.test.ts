@@ -124,6 +124,7 @@ interface DemoAppMethodRegistry {
 }
 
 interface DemoAppPublicInstance {
+  getTree(): VueVirtualTreeInstance<DemoTreeNode>
   appliedOptions: Record<string, string | number | boolean>
   applyAndRemount(): void
   benchmarks: unknown[]
@@ -431,6 +432,7 @@ afterEach(() => {
   vi.clearAllTimers()
   vi.useRealTimers()
   document.body.replaceChildren()
+  window.localStorage.clear()
 })
 
 describe(`${__VUE_RUNTIME__} component runtime`, () => {
@@ -446,7 +448,7 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
       expect(row.getAttribute('aria-labelledby')).toBe(`prop-label-${name}`)
       expect(row.getAttribute('aria-describedby')).toBe(`prop-description-${name}`)
       expect(result.host.querySelector(`#prop-label-${name}`)?.textContent).toContain(name)
-      expect(result.host.querySelector(`#prop-description-${name}`)?.textContent).toContain('default')
+      expect(result.host.querySelector(`#prop-description-${name}`)?.textContent).toMatch(/default/i)
 
       const control = row.querySelector<HTMLInputElement>('input')
       if (control) {
@@ -454,6 +456,45 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
         expect(control.getAttribute('aria-describedby')).toBe(`prop-description-${name}`)
       }
     }
+  })
+
+  test('switches demo language while retaining the active tree, inputs and checked nodes', async () => {
+    const result = await mountDemoApp()
+    result.instance.targetKey = 'node-12'
+    await result.instance.runNamedMethod('setChecked')
+    const tree = result.host.querySelector('.tree-frame .virtual-tree')
+    const data = result.instance.treeData
+    const checkbox = result.host.querySelector<HTMLInputElement>('.tree-frame input[type="checkbox"]:checked')
+    expect(checkbox).not.toBeNull()
+    result.host.querySelector<HTMLButtonElement>('[lang="zh-CN"]')?.click()
+    await settle()
+    expect(document.documentElement.lang).toBe('zh-CN')
+    expect(result.host.querySelector('#props-heading')?.textContent).toContain('参数设置')
+    expect(result.host.querySelector('.tree-frame .virtual-tree')).toBe(tree)
+    expect(result.instance.treeData).toBe(data)
+    expect(result.instance.targetKey).toBe('node-12')
+    expect(checkbox?.checked).toBe(true)
+    expect(window.localStorage.getItem('vue-virtual-tree:locale')).toBe('zh')
+    result.host.querySelector<HTMLButtonElement>('[lang="en"]')?.click()
+    await settle()
+    expect(document.documentElement.lang).toBe('en')
+    expect(result.host.querySelector('#props-heading')?.textContent).toContain('Settings')
+    expect(result.host.querySelector('.tree-frame .virtual-tree')).toBe(tree)
+  })
+
+  test('does not reapply default checked or expanded nodes when translating the demo', async () => {
+    const result = await mountDemoApp()
+    const tree = result.instance.getTree()
+    tree.setCheckedKeys([])
+    const node = tree.getNode('node-2')!
+    node.collapse()
+    await settle()
+    expect(tree.getCheckedKeys()).toEqual([])
+    expect(node.expanded).toBe(false)
+    result.host.querySelector<HTMLButtonElement>('[lang="zh-CN"]')?.click()
+    await settle()
+    expect(tree.getCheckedKeys()).toEqual([])
+    expect(node.expanded).toBe(false)
   })
 
   test('keeps scoped checkbox clicks out of node click and current change events', async () => {

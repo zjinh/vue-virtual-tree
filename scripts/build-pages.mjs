@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { cp, copyFile, mkdir, rm } from 'node:fs/promises'
+import { cp, mkdir, rm, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -43,7 +43,9 @@ for (const runtime of ['vue2', 'vue3']) {
 
 await rm(pagesDirectory, { force: true, recursive: true })
 await mkdir(pagesDirectory, { recursive: true })
-await copyFile(join(projectRoot, 'site/index.html'), join(pagesDirectory, 'index.html'))
+const launcher = await readFile(join(projectRoot, 'site/index.html'), 'utf8')
+const localeScript = await readFile(join(projectRoot, 'examples/shared/locale.js'), 'utf8')
+await writeFile(join(pagesDirectory, 'index.html'), launcher.replace('/* SHARED_LOCALE */', localeScript.replace('export const demoLocale', 'const demoLocale')))
 
 for (const runtime of ['vue2', 'vue3']) {
   await cp(

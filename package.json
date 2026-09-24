@@ -58,7 +58,7 @@
     "typecheck:sfc": "vue-tsc --noEmit -p tsconfig.sfc.json",
     "typecheck:demos": "pnpm --filter @zjinh/vue-virtual-tree-demo-vue2 run typecheck && pnpm --filter @zjinh/vue-virtual-tree-demo-vue3 run typecheck",
     "build:demos": "pnpm --filter @zjinh/vue-virtual-tree-demo-vue2 run build && pnpm --filter @zjinh/vue-virtual-tree-demo-vue3 run build",
-    "test:demos:unit": "vitest run tests/demo/api-manifest.test.ts tests/demo/benchmark.test.ts tests/demo/data.test.ts",
+    "test:demos:unit": "vitest run tests/demo/api-manifest.test.ts tests/demo/benchmark.test.ts tests/demo/data.test.ts tests/demo/locale.test.ts",
     "test:demos:check": "pnpm run test:demos:unit && pnpm run typecheck:demos && pnpm run build:demos",
     "test:demos": "pnpm run build && pnpm run test:demos:check",
     "test:pages": "pnpm run build:pages && node --test tests/pages-contract.test.mjs",

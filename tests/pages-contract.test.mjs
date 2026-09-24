@@ -257,3 +257,24 @@ test('deploys the tested artifact with least-privilege GitHub Pages jobs', async
   assert.match(deployJob, /permissions:[\s\S]*pages:\s*write[\s\S]*id-token:\s*write/)
   assert.match(deployJob, /environment:[\s\S]*name:\s*github-pages/)
 })
+
+test('switches launcher language without restarting the active demo or readiness timeout', async () => {
+  const { dom, timers } = createLauncher(await read('_site/index.html'))
+  try {
+    const { document, localStorage } = dom.window
+    const chinese = document.querySelector('[data-locale="zh"]')
+    assert.ok(chinese, 'the launcher must offer Chinese')
+    const frame = document.querySelector('iframe')
+    const initialSource = frame.getAttribute('src')
+    chinese.click()
+    assert.equal(document.documentElement.lang, 'zh-CN')
+    assert.equal(localStorage.getItem('vue-virtual-tree:locale'), 'zh')
+    assert.equal(chinese.getAttribute('aria-pressed'), 'true')
+    assert.match(document.querySelector('[data-demo-link]').textContent, /单独打开/)
+    assert.equal(frame.getAttribute('src'), initialSource)
+    assert.equal(timers.size, 1)
+    document.querySelector('[data-locale="en"]').click()
+    assert.equal(document.documentElement.lang, 'en')
+    assert.equal(frame.getAttribute('src'), initialSource)
+  } finally { dom.window.close() }
+})
