@@ -2,7 +2,7 @@
 
 # API 参考
 
-默认入口和 `/vue3` 提供 Vue 3 构建，Vue 2.7 构建从 `/vue2` 导入。两个构建使用本页所列的相同契约。
+Vue 2.7 与 Vue 3 共用 `@zjinh/vue-virtual-tree` 根入口和本页所列的契约。组件仅提供这一个入口，已移除 `/vue2` 和 `/vue3` 包子路径。
 
 完整可运行示例见[使用指南](./guide.zh-CN.md)。
 
@@ -91,7 +91,7 @@
 
 `VueVirtualTreeCheckState<T>` 包含 `checkedNodes`、`checkedKeys`、`halfCheckedNodes` 和 `halfCheckedKeys`。启用 `selectChildrenOnly` 时，还可能包含 `selectedLeafNodes` 与 `selectedLeafKeys`。
 
-如果要在两个 Vue 构建中一致地阻止原生右键菜单，请在 `node-contextmenu` 处理函数中调用 `event.preventDefault()`。
+如果要在两个 Vue 版本中一致地阻止原生右键菜单，请在 `node-contextmenu` 处理函数中调用 `event.preventDefault()`。
 
 <!-- section:slot -->
 ## 默认 slot
@@ -158,7 +158,7 @@
 <!-- section:constraints -->
 ## 运行说明
 
-- Vue 2 支持范围仅为 Vue 2.7.x，另一个构建支持 Vue 3 >= 3.2，二者共用同一份类型声明。
+- Vue 2 支持范围仅为 Vue 2.7.x，不支持 Vue 2.6。Vue 3 >= 3.2 使用相同的根入口和类型声明，无需安装 `vue-demi` 或运行版本切换脚本。
 - 包格式仅为 ESM，目标环境需要支持 ESM 与 ES2020。项目没有单独的传统浏览器构建。
 - 组件需要 `ResizeObserver`。
 - 虚拟化依赖固定行高布局和 `itemSize > 0`。可变行高、内容换行或零高度容器会导致可见区间计算错误。

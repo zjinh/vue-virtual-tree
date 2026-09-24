@@ -182,7 +182,6 @@ test('typechecks every Guide example as a standalone Vue 3 SFC', async () => {
             noEmit: true,
             paths: {
               '@zjinh/vue-virtual-tree': [join(projectRoot, 'src/index.ts')],
-              '@zjinh/vue-virtual-tree/vue3': [join(projectRoot, 'src/index.ts')],
             },
           },
           include: [
@@ -210,13 +209,12 @@ test('typechecks every Guide example as a standalone Vue 3 SFC', async () => {
   }
 })
 
-test('typechecks the README quick starts and Vue 2.7 Guide code against their real entries', async () => {
+test('typechecks the README quick starts and Vue 2.7 Guide code through the root entry', async () => {
   for (const document of readmeDocuments) {
     assert.ok(document.source, `${document.name} must exist`)
   }
 
   const vue3Main = fencedBlocks(readmeDocuments[0].source, 'vue3', 'ts')[0]
-  const vue3ExplicitEntry = fencedBlocks(readmeDocuments[0].source, 'vue3', 'ts')[1]
   const vue3App = fencedBlocks(readmeDocuments[0].source, 'vue3', 'vue')[0]
   const vue2Main = fencedBlocks(readmeDocuments[0].source, 'vue2', 'ts')[0]
   const vue2App = fencedBlocks(readmeDocuments[0].source, 'vue2', 'vue')[0]
@@ -224,7 +222,6 @@ test('typechecks the README quick starts and Vue 2.7 Guide code against their re
 
   for (const [label, source] of [
     ['Vue 3 main', vue3Main],
-    ['Vue 3 explicit entry', vue3ExplicitEntry],
     ['Vue 3 SFC', vue3App],
     ['Vue 2.7 main', vue2Main],
     ['Vue 2.7 SFC', vue2App],
@@ -234,11 +231,15 @@ test('typechecks the README quick starts and Vue 2.7 Guide code against their re
   }
 
   assert.equal(vue3Main, fencedBlocks(readmeDocuments[1].source, 'vue3', 'ts')[0])
-  assert.equal(vue3ExplicitEntry, fencedBlocks(readmeDocuments[1].source, 'vue3', 'ts')[1])
   assert.equal(vue3App, fencedBlocks(readmeDocuments[1].source, 'vue3', 'vue')[0])
   assert.equal(vue2Main, fencedBlocks(readmeDocuments[1].source, 'vue2', 'ts')[0])
   assert.equal(vue2App, fencedBlocks(readmeDocuments[1].source, 'vue2', 'vue')[0])
   assert.equal(guideVue2, fencedBlocks(documents[1].source, 'vue2', 'ts')[0])
+
+  for (const source of [vue3Main, vue2Main, guideVue2]) {
+    assert.match(source, /from ['"]@zjinh\/vue-virtual-tree['"]/)
+    assert.doesNotMatch(source, /@zjinh\/vue-virtual-tree\/vue[23]/)
+  }
 
   const releaseDirectory = join(projectRoot, '.release')
   await mkdir(releaseDirectory, { recursive: true })
@@ -252,7 +253,6 @@ test('typechecks the README quick starts and Vue 2.7 Guide code against their re
     await emitDeclarations(declarationRoot)
     await Promise.all([
       writeFile(join(vue3Root, 'main.ts'), vue3Main),
-      writeFile(join(vue3Root, 'explicit-entry.ts'), vue3ExplicitEntry),
       writeFile(join(vue3Root, 'App.vue'), vue3App),
       writeFile(join(vue3Root, 'env.d.ts'), "declare module '*.css'\n"),
       writeFile(join(vue3Root, 'tsconfig.json'), JSON.stringify({
@@ -261,7 +261,6 @@ test('typechecks the README quick starts and Vue 2.7 Guide code against their re
           noEmit: true,
           paths: {
             '@zjinh/vue-virtual-tree': [join(projectRoot, 'src/index.ts')],
-            '@zjinh/vue-virtual-tree/vue3': [join(projectRoot, 'src/index.ts')],
           },
         },
         include: [
@@ -281,7 +280,6 @@ test('typechecks the README quick starts and Vue 2.7 Guide code against their re
           paths: {
             vue: [join(projectRoot, 'node_modules/vue2')],
             '@zjinh/vue-virtual-tree': [join(declarationRoot, 'index.d.ts')],
-            '@zjinh/vue-virtual-tree/vue2': [join(declarationRoot, 'index.d.ts')],
           },
         },
         vueCompilerOptions: {

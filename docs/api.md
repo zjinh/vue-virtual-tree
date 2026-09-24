@@ -2,7 +2,7 @@
 
 # API reference
 
-The default entry and `/vue3` expose the Vue 3 build. Import the Vue 2.7 build from `/vue2`. Both builds use the contracts on this page.
+Vue 2.7 and Vue 3 share the `@zjinh/vue-virtual-tree` root entry and the contracts on this page. This is the only component entry; the `/vue2` and `/vue3` package subpaths have been removed.
 
 For complete working examples, see the [usage guide](./guide.md).
 
@@ -91,7 +91,7 @@ The public event map contains 7 events.
 
 `VueVirtualTreeCheckState<T>` contains `checkedNodes`, `checkedKeys`, `halfCheckedNodes`, and `halfCheckedKeys`. It can also contain `selectedLeafNodes` and `selectedLeafKeys` when `selectChildrenOnly` is enabled.
 
-For consistent context-menu behavior across both Vue builds, call `event.preventDefault()` in the `node-contextmenu` handler when the native menu should be suppressed.
+For consistent context-menu behavior across both Vue versions, call `event.preventDefault()` in the `node-contextmenu` handler when the native menu should be suppressed.
 
 <!-- section:slot -->
 ## Default slot
@@ -158,7 +158,7 @@ Runtime exports are:
 <!-- section:constraints -->
 ## Runtime notes
 
-- Vue 2 support is limited to Vue 2.7.x. The other build supports Vue 3 >= 3.2. Both expose the same declarations.
+- Vue 2 support is limited to Vue 2.7.x; Vue 2.6 is not supported. Vue 3 >= 3.2 uses the same root entry and declarations. No `vue-demi` installation or version-switching script is needed.
 - The package is ESM only and targets an ESM-aware, ES2020-capable environment. There is no separate legacy-browser build.
 - The component needs `ResizeObserver`.
 - Virtualization assumes a fixed-row layout with `itemSize > 0`. Variable-height rows, wrapping content, or a zero-height container can produce incorrect visible ranges.

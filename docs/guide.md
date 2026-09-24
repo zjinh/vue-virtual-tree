@@ -2,7 +2,7 @@
 
 # Usage guide
 
-The complete examples on this page are Vue 3 SFCs. Vue 2.7 uses the same component API through the `/vue2` entry; see [Using Vue 2.7](#using-vue-27) below.
+The complete examples on this page are Vue 3 SFCs. Vue 2.7 uses the same `@zjinh/vue-virtual-tree` root entry and component API; see [Using Vue 2.7](#using-vue-27) below.
 
 For the full prop, event, slot, method, and type contracts, see the [API reference](./api.md).
 
@@ -298,7 +298,7 @@ Key-based calls need a stable `nodeKey`. Structural methods update both the inte
 <!-- section:vue2 -->
 ## Using Vue 2.7
 
-Import the component and its types from `@zjinh/vue-virtual-tree/vue2`, and keep the shared CSS import. The props, events, slot values, and ref methods are the same as in Vue 3.
+Import the component and its types from `@zjinh/vue-virtual-tree`, and keep the shared CSS import. The props, events, slot values, and ref methods are the same as in Vue 3.
 
 Use the Options API for component state and local registration:
 
@@ -306,7 +306,7 @@ Use the Options API for component state and local registration:
 import Vue from 'vue'
 import VueVirtualTree, {
   type VueVirtualTreeInstance,
-} from '@zjinh/vue-virtual-tree/vue2'
+} from '@zjinh/vue-virtual-tree'
 import '@zjinh/vue-virtual-tree/style.css'
 
 export default Vue.extend({

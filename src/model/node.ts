@@ -1,7 +1,6 @@
 import type TreeStore from './tree-store'
 import {
   markNodeData,
-  NODE_KEY,
   objectAssign,
   type TreeChildrenKey,
   type TreeNodeData,
@@ -130,6 +129,7 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
   loaded = false
   childNodes: Node<T>[] = []
   loading = false
+  _loadVersion = 0
   isLeafByUser?: boolean
   isLeaf = false
 
@@ -206,12 +206,30 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
   }
 
   setData(data: T | T[]): void {
+    this._loadVersion += 1
+    this.loading = false
+    const previousData = this.data
+    const previousKey = this.key
+    for (const child of this.childNodes) {
+      this.store.deregisterNode(child)
+      child.parent = null
+    }
     if (!Array.isArray(data)) {
       markNodeData(this, data);
     }
 
     this.data = data as T
     this.childNodes = [];
+    if (previousKey != null && this.store.nodesMap[previousKey] === this) {
+      delete this.store.nodesMap[previousKey]
+    }
+    this.store.registerNode(this)
+    if (previousData !== data) {
+      const siblings = this.parent?.getChildren()
+      const index = siblings?.indexOf(previousData) ?? -1
+      if (siblings && index !== -1) siblings.splice(index, 1, this.data)
+      if (this === this.store.root && Array.isArray(data)) this.store.data = data
+    }
 
     let children: T[]
     if (this.level === 0 && this.data instanceof Array) {
@@ -223,6 +241,7 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
     for (let i = 0, j = children.length; i < j; i++) {
       this.insertChild({ data: children[i] });
     }
+    this.updateLeafState()
   }
 
   get label(): unknown {
@@ -300,18 +319,38 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
   ): void {
     if (!child) throw new Error("insertChild error: child is required.");
 
-    let childNode: Node<T>
-    if (!(child instanceof Node)) {
-      if (!batch) {
-        const children = this.getChildren(true)!;
-        if (children.indexOf(child.data) === -1) {
-          if (typeof index === "undefined" || index < 0) {
-            children.push(child.data);
-          } else {
-            children.splice(index, 0, child.data);
-          }
+    if (child instanceof Node) {
+      if (child === this || child.contains(this)) {
+        throw new Error('insertChild error: cannot insert itself or an ancestor.');
+      }
+      const previousParent = child.parent
+      const previousIndex = previousParent?.childNodes.indexOf(child) ?? -1
+      if (previousParent && previousIndex !== -1) {
+        previousParent.childNodes.splice(previousIndex, 1)
+        const previousData = previousParent.getChildren()
+        const dataIndex = previousData?.indexOf(child.data) ?? -1
+        if (previousData && dataIndex !== -1) previousData.splice(dataIndex, 1)
+        if (previousParent === this && index !== undefined && previousIndex < index) index -= 1
+        previousParent.updateLeafState()
+      }
+      // Moving within one store preserves selection. A different store must
+      // release all old registrations before the subtree is adopted below.
+      if (child.store !== this.store) child.store.deregisterNode(child)
+    }
+
+    if (!batch) {
+      const children = this.getChildren(true)!;
+      if (children.indexOf(child.data) === -1) {
+        if (typeof index === "undefined" || index < 0) {
+          children.push(child.data);
+        } else {
+          children.splice(index, 0, child.data);
         }
       }
+    }
+
+    let childNode: Node<T>
+    if (!(child instanceof Node)) {
       objectAssign(child, {
         parent: this,
         store: this.store,
@@ -319,6 +358,16 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
       childNode = new Node(child as NodeOptions<T>);
     } else {
       childNode = child
+      childNode.parent = this
+      const pending = [childNode]
+      while (pending.length) {
+        const descendant = pending.pop()!
+        descendant.store = this.store
+        descendant.level = descendant.parent!.level + 1
+        descendant.updateLeafState()
+        this.store.registerNode(descendant)
+        pending.push(...descendant.childNodes)
+      }
     }
 
     childNode.level = this.level + 1;
@@ -350,22 +399,17 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
   }
 
   removeChild(child: Node<T>): void {
+    const index = this.childNodes.indexOf(child);
+    if (index === -1) return;
     const children = this.getChildren() || [];
     const dataIndex = children.indexOf(child.data);
     if (dataIndex > -1) {
       children.splice(dataIndex, 1);
     }
 
-    const index = this.childNodes.indexOf(child);
-
-    if (index > -1) {
-      // 性能优化：只有在必要时才调用deregisterNode
-      if (this.store && child.key !== undefined) {
-        this.store.deregisterNode(child);
-      }
-      child.parent = null;
-      this.childNodes.splice(index, 1);
-    }
+    this.store.deregisterNode(child);
+    child.parent = null;
+    this.childNodes.splice(index, 1);
 
     this.updateLeafState();
   }
@@ -565,7 +609,7 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
 
   getChildren(forceInit = false): T[] | null {
     // this is data
-    if (this.level === 0) return this.data as unknown as T[];
+    if (Array.isArray(this.data)) return this.data as T[];
     const data = this.data;
     if (!data) return null;
 
@@ -589,50 +633,26 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
 
   updateChildren(): void {
     const newData = this.getChildren() || [];
-    const oldData = this.childNodes.map((node) => node.data);
-
-    const newDataMap: Partial<Record<number, { index: number; data: T }>> = {};
-    const newNodes: Array<{ index: number; data: T }> = [];
-
-    // 性能优化：使用Map来提高查找效率
-    const oldDataMap = new Map<number, { data: T; index: number }>();
-    oldData.forEach((data, index) => {
-      const internalKey = (data as Record<string, unknown>)[NODE_KEY] as number | undefined
-      if (internalKey) {
-        oldDataMap.set(internalKey, { data, index });
-      }
-    });
-
-    newData.forEach((item, index) => {
-      const key = (item as Record<string, unknown>)[NODE_KEY] as number | undefined;
-      if (key && oldDataMap.has(key)) {
-        newDataMap[key] = { index, data: item };
-      } else {
-        newNodes.push({ index, data: item });
-      }
-    });
-
-    if (!this.store.lazy) {
-      // 性能优化：批量移除不存在的节点
-      const nodesToRemove: T[] = [];
-      oldData.forEach((item) => {
-        const internalKey = (item as Record<string, unknown>)[NODE_KEY] as number | undefined
-        if (internalKey && !newDataMap[internalKey]) {
-          nodesToRemove.push(item);
-        }
-      });
-
-      // 批量移除
-      nodesToRemove.forEach(item => {
-        this.removeChildByData(item);
-      });
+    const oldNodes = new Map(this.childNodes.map((node) => [node.data, node]))
+    if (this.store.lazy) {
+      // Loaded children may exist only in childNodes. Preserve their positions
+      // (including append/relative inserts) when the raw children array changes.
+      newData.forEach((data, index) => {
+        if (!oldNodes.has(data)) this.insertChild({ data }, index)
+      })
+      this.updateLeafState()
+      return
     }
-
-    // 批量插入新节点
-    newNodes.forEach(({ index, data }) => {
-      this.insertChild({ data }, index);
-    });
-
+    const retainedData = new Set(newData)
+    for (const child of this.childNodes) {
+      if (!retainedData.has(child.data)) {
+        this.store.deregisterNode(child)
+        child.parent = null
+      }
+    }
+    this.childNodes = newData.map((data) => oldNodes.get(data) ?? new Node({
+      data, parent: this, store: this.store,
+    }))
     this.updateLeafState();
   }
 
@@ -647,8 +667,10 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
       (!this.loading || Object.keys(defaultProps).length)
     ) {
       this.loading = true;
+      const loadVersion = this._loadVersion;
 
       const resolve = (children: T[]) => {
+        if (loadVersion !== this._loadVersion) return;
         this.loaded = true;
         this.loading = false;
         this.childNodes = [];

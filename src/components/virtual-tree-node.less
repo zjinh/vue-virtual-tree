@@ -1,0 +1,33 @@
+.virtual-tree-node[data-v-vvt-node] {
+  width: 100%;
+  position: relative;
+  cursor: default;
+  white-space: nowrap;
+  outline: none;
+  display: flex;
+  align-items: center;
+}
+
+.virtual-tree-node .expand-icon[data-v-vvt-node] {
+  cursor: pointer;
+  color: #C0C4CC;
+  font-size: 12px;
+  transform: rotate(0deg);
+  transition: transform 0.3s ease-in-out;
+  &.no-transition {
+    transition: none;
+  }
+  &.expanded {
+    transform: rotate(90deg);
+  }
+}
+
+.virtual-tree-node .caret-right[data-v-vvt-node]:before {
+  content: ">";
+}
+
+.virtual-tree-node .loading-icon[data-v-vvt-node] {
+  margin-right: 8px;
+  font-size: 14px;
+  color: #C0C4CC;
+}

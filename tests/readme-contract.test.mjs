@@ -2,12 +2,11 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import ts from 'typescript'
-import * as vue2Compiler from 'vue2/compiler-sfc'
 
 const root = new URL('../', import.meta.url)
 const packageJson = JSON.parse(await readFile(new URL('package.json', root), 'utf8'))
 const sourceEntryText = await readFile(new URL('src/index.ts', root), 'utf8')
-const sourceComponentText = await readFile(new URL('src/index.vue', root), 'utf8')
+const sourceComponentText = await readFile(new URL('src/tree.ts', root), 'utf8')
 const sourceEntry = ts.createSourceFile(
   'src/index.ts',
   sourceEntryText,
@@ -15,19 +14,14 @@ const sourceEntry = ts.createSourceFile(
   true,
   ts.ScriptKind.TS,
 )
-const parsedSourceComponent = vue2Compiler.parse({
-  filename: 'src/index.vue',
-  source: sourceComponentText,
-})
-assert.deepEqual(parsedSourceComponent.errors, [], 'src/index.vue must parse')
-assert.ok(parsedSourceComponent.script, 'src/index.vue must contain a script block')
 const sourceComponentScript = ts.createSourceFile(
-  'src/index.vue.ts',
-  parsedSourceComponent.script.content,
+  'src/tree.ts',
+  sourceComponentText,
   ts.ScriptTarget.Latest,
   true,
   ts.ScriptKind.TS,
 )
+assert.deepEqual(sourceComponentScript.parseDiagnostics, [], 'src/tree.ts must parse')
 
 async function readOptional(relativePath) {
   try {
@@ -292,7 +286,7 @@ function findDefineComponentOptions() {
     ts.forEachChild(node, visit)
   }
   visit(sourceComponentScript)
-  assert.ok(options, 'src/index.vue must call defineComponent with an object')
+  assert.ok(options, 'src/tree.ts must call defineComponent with an object')
   return options
 }
 
@@ -476,8 +470,6 @@ test('keeps each README as a compact package entry page', () => {
       'npm install @zjinh/vue-virtual-tree',
       'yarn add @zjinh/vue-virtual-tree',
       '@zjinh/vue-virtual-tree/style.css',
-      '@zjinh/vue-virtual-tree/vue2',
-      '@zjinh/vue-virtual-tree/vue3',
       'createApp(App).use(VueVirtualTree)',
       'Vue.use(VueVirtualTree)',
       '<VueVirtualTree',
@@ -505,6 +497,23 @@ test('keeps each README as a compact package entry page', () => {
     'https://github.com/zjinh/vue-virtual-tree/blob/main/docs/api.zh-CN.md',
   ]) {
     assert.ok(files['README.zh-CN.md'].includes(url), `README.zh-CN.md must link ${url}`)
+  }
+})
+
+test('documents one root entry for both supported Vue runtimes', () => {
+  for (const [name, document] of [...readmes, ...guides, ...apis]) {
+    assert.ok(document, `${name} must exist`)
+    assert.ok(document.includes('`@zjinh/vue-virtual-tree`'), `${name} must document the root entry`)
+    assert.doesNotMatch(document, /from ['"]@zjinh\/vue-virtual-tree\/vue[23]['"]/, `${name} examples must use the root entry`)
+  }
+
+  for (const [name, document] of readmes) {
+    const compatibility = betweenSections(document, 'compatibility', 'demos')
+    assert.match(compatibility, /\| Vue 2 \|[^\n]*\| `@zjinh\/vue-virtual-tree` \|/)
+    assert.match(compatibility, /\| Vue 3 \|[^\n]*\| `@zjinh\/vue-virtual-tree` \|/)
+    assert.match(compatibility, /subpaths have been removed|已移除/, `${name} must explain the removed version subpaths`)
+    assert.match(compatibility, /Vue 2\.6/, `${name} must state the Vue 2 boundary`)
+    assert.match(compatibility, /vue-demi/, `${name} must explain installation needs`)
   }
 })
 
@@ -586,7 +595,7 @@ test('moves complete usage guidance into both Guide documents', () => {
       'ref="tree"',
       'getCheckedKeys()',
       'ResizeObserver',
-      '@zjinh/vue-virtual-tree/vue2',
+      '@zjinh/vue-virtual-tree',
       'Options API',
     ]) {
       assert.ok(document.includes(fact), `${name} must document ${fact}`)
@@ -621,7 +630,7 @@ test('lists the complete supported prop contract in both API documents', () => {
     assert.deepEqual(
       documentedDefaultRows.map((row) => [row[0], normalizedDefault(row[2])]),
       documentedDefaultRows.map((row) => [row[0], sourceRuntimePropDefaults.get(row[0])]),
-      `${name} must list Vue prop defaults derived from src/index.vue`,
+      `${name} must list Vue prop defaults derived from src/tree.ts`,
     )
     assert.equal(sourceRuntimePropDefaults.size, propRows.length)
     assert.equal(sourceRuntimePropDefaults.get('renderContent'), 'not set')

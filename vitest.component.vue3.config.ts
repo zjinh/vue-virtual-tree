@@ -9,7 +9,7 @@ export default defineConfig({
   plugins: [Vue({ isProduction: false })],
   test: {
     environment: 'jsdom',
-    include: ['tests/component/runtime.test.ts'],
+    include: ['tests/component/**/*.test.ts'],
     setupFiles: ['tests/component/setup.ts'],
   },
 })

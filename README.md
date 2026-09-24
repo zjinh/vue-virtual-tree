@@ -8,15 +8,17 @@
 
 A fixed-row-height virtual tree for Vue 2.7 and Vue 3. It handles large trees by mounting only the rows inside the viewport, while keeping checkbox selection, current-node state, filtering, lazy loading, mutation methods, and custom row content in one API.
 
-The package is ESM. The default entry targets Vue 3; Vue 2.7 has a separate entry. Import the shared styles from `@zjinh/vue-virtual-tree/style.css`.
+The package is ESM. Vue 2.7 and Vue 3 use the same `@zjinh/vue-virtual-tree` entry. Import the shared styles from `@zjinh/vue-virtual-tree/style.css`.
 
 <!-- section:compatibility -->
 ## Compatibility
 
 | Runtime | Supported version | Import |
 | --- | --- | --- |
-| Vue 2 | Vue 2.7.x only | `@zjinh/vue-virtual-tree/vue2` |
-| Vue 3 | Vue 3 >= 3.2 | `@zjinh/vue-virtual-tree` or `@zjinh/vue-virtual-tree/vue3` |
+| Vue 2 | Vue 2.7.x only | `@zjinh/vue-virtual-tree` |
+| Vue 3 | Vue 3 >= 3.2 | `@zjinh/vue-virtual-tree` |
+
+Vue 2.6 is not supported. The package exposes one component entry: `@zjinh/vue-virtual-tree`. The `/vue2` and `/vue3` package subpaths have been removed. No `vue-demi` installation or version-switching script is needed.
 
 <!-- section:demos -->
 ## Online demos
@@ -42,7 +44,7 @@ npm install @zjinh/vue-virtual-tree
 yarn add @zjinh/vue-virtual-tree
 ```
 
-Install Vue 2.7.x when using `/vue2`, or Vue 3 >= 3.2 when using the default or `/vue3` entry.
+Install Vue 2.7.x or Vue 3 >= 3.2 in your application, then use the root entry in either version.
 
 <!-- section:vue3 -->
 ## Vue 3 quick start
@@ -56,12 +58,6 @@ import '@zjinh/vue-virtual-tree/style.css'
 import App from './App.vue'
 
 createApp(App).use(VueVirtualTree).mount('#app')
-```
-
-The explicit Vue 3 import is also available:
-
-```ts
-import VueVirtualTree from '@zjinh/vue-virtual-tree/vue3'
 ```
 
 Then render a tree:
@@ -99,11 +95,11 @@ For local registration, import the same component and add `components: { VueVirt
 <!-- section:vue2 -->
 ## Vue 2.7 quick start
 
-Use the Vue 2.7 entry in `main.ts`:
+Use the same root entry in `main.ts`:
 
 ```ts
 import Vue from 'vue'
-import VueVirtualTree from '@zjinh/vue-virtual-tree/vue2'
+import VueVirtualTree from '@zjinh/vue-virtual-tree'
 import '@zjinh/vue-virtual-tree/style.css'
 import App from './App.vue'
 
@@ -143,7 +139,7 @@ export default {
 </template>
 ```
 
-For local registration, import from `/vue2` and add `components: { VueVirtualTree }`.
+For local registration, import the same component and add `components: { VueVirtualTree }`.
 
 <!-- section:documentation -->
 ## More documentation

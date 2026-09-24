@@ -1,5 +1,5 @@
 import { createApp } from 'vue'
-import VueVirtualTree from '@zjinh/vue-virtual-tree/vue3'
+import VueVirtualTree from '@zjinh/vue-virtual-tree'
 import '@zjinh/vue-virtual-tree/style.css'
 
 import App from '../../shared/App.vue'

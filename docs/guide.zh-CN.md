@@ -2,7 +2,7 @@
 
 # 使用指南
 
-本页的 5 个完整示例均为 Vue 3 SFC。Vue 2.7 通过 `/vue2` 入口使用相同的组件 API，具体见下方[在 Vue 2.7 中使用](#在-vue-27-中使用)。
+本页的 5 个完整示例均为 Vue 3 SFC。Vue 2.7 使用相同的 `@zjinh/vue-virtual-tree` 根入口和组件 API，具体见下方[在 Vue 2.7 中使用](#在-vue-27-中使用)。
 
 完整的 props、事件、slot、方法和类型契约见 [API 参考](./api.zh-CN.md)。
 
@@ -298,7 +298,7 @@ function selectFirstChild() {
 <!-- section:vue2 -->
 ## 在 Vue 2.7 中使用
 
-从 `@zjinh/vue-virtual-tree/vue2` 导入组件与类型，并继续导入公共 CSS。props、事件、slot 参数和 ref 方法与 Vue 3 相同。
+从 `@zjinh/vue-virtual-tree` 导入组件与类型，并继续导入公共 CSS。props、事件、slot 参数和 ref 方法与 Vue 3 相同。
 
 使用 Options API 管理组件状态和局部注册：
 
@@ -306,7 +306,7 @@ function selectFirstChild() {
 import Vue from 'vue'
 import VueVirtualTree, {
   type VueVirtualTreeInstance,
-} from '@zjinh/vue-virtual-tree/vue2'
+} from '@zjinh/vue-virtual-tree'
 import '@zjinh/vue-virtual-tree/style.css'
 
 export default Vue.extend({

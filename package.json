@@ -6,24 +6,14 @@
   "license": "MIT",
   "private": false,
   "type": "module",
-  "main": "./dist/vue3/index.js",
-  "module": "./dist/vue3/index.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/vue3/index.js",
-      "default": "./dist/vue3/index.js"
-    },
-    "./vue2": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/vue2/index.js",
-      "default": "./dist/vue2/index.js"
-    },
-    "./vue3": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/vue3/index.js",
-      "default": "./dist/vue3/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
@@ -67,7 +57,7 @@
     "test:model": "vitest run tests/model",
     "test:component:vue2": "vitest run --config vitest.component.vue2.config.ts",
     "test:component:vue3": "vitest run --config vitest.component.vue3.config.ts",
-    "test:components": "pnpm run test:component:vue2 && pnpm run test:component:vue3",
+    "test:components": "pnpm run build && pnpm run test:component:vue2 && pnpm run test:component:vue3",
     "test:artifacts": "node --test tests/artifact-contract.test.mjs",
     "test:types": "tsc -p tests/types/vue3/tsconfig.json && tsc -p tests/types/vue2/tsconfig.json",
     "release:policy": "node scripts/check-release-policy.mjs",

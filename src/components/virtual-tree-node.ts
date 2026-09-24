@@ -1,54 +1,9 @@
-<template>
-  <div
-    v-show="node.visible"
-    ref="node"
-    class="virtual-tree-node"
-    :class="{
-      'is-expanded': expanded,
-      'is-current': tree.highlightCurrent && node.isCurrent,
-      'is-hidden': !node.visible,
-    }"
-    tabindex="-1"
-    :draggable="tree.draggable"
-    @click.stop="handleClick"
-    @contextmenu="handleContextMenu($event)"
-    @dragstart.stop="handleDragStart"
-    @dragover.stop="handleDragOver"
-    @dragend.stop="handleDragEnd"
-    @drop.stop="handleDrop"
-  >
-    <slot :node="node" :item="node.data" :selectChange="handleCheckChange">
-      <span aria-hidden="true" :style="{'min-width': (node.level - 1) * tree.indent + 'px',}"></span>
-      <span
-          class="expand-icon"
-          :class="[
-          {
-            'is-leaf': node.isLeaf,
-            expanded: !node.isLeaf && expanded,
-          },
-          tree.iconClass ? tree.iconClass : 'caret-right',
-        ]"
-          @click.stop="handleExpandIconClick"
-      ></span>
-      <Checkbox
-          v-if="showCheckbox"
-          :modelValue="node.checked"
-          :indeterminate="node.indeterminate"
-          :disabled="!!node.disabled"
-          @change="handleCheckChange"
-          @click.native.stop
-      />
-      <span v-if="node.loading" class="loading-icon"></span>
-      <span class="name">{{node.label}}</span>
-    </slot>
-  </div>
-</template>
-
-<script lang="ts">
+import './virtual-tree-node.less'
 import { defineComponent } from 'vue'
-import type { PropType } from 'vue'
+import type { PropType, VNode } from 'vue'
+import { displayLabel, getDefaultSlot, hasSlotContent, renderCompat, stopEvent } from './render-compat'
 
-import Checkbox from './checkbox.vue'
+import Checkbox from './checkbox'
 import type {
   TreeNode,
   TreeNodeData,
@@ -59,7 +14,7 @@ import { getNodeKey } from '../model/util'
 
 type LegacyRenderContent = (...args: unknown[]) => unknown
 
-interface TreeContext {
+export interface TreeContext {
   $emit(event: string, ...args: unknown[]): void
   _events?: Record<string, unknown | unknown[]>
   checkOnClickNode?: boolean
@@ -76,7 +31,7 @@ interface TreeContext {
   tree?: TreeContext
 }
 
-interface TreeParentCandidate {
+export interface TreeParentCandidate {
   $parent?: TreeParentCandidate | null
   isTree?: boolean
   tree?: TreeContext
@@ -85,6 +40,8 @@ interface TreeParentCandidate {
 type CheckChangeValue = boolean | Event | null | undefined
 
 export default defineComponent({
+  __scopeId: 'data-v-vvt-node',
+  _scopeId: 'data-v-vvt-node',
   name: 'virtualTreeNode',
   componentName: 'virtualTreeNode',
   components: {
@@ -139,6 +96,53 @@ export default defineComponent({
   },
   created() {
     this.init(this.$parent as unknown as TreeParentCandidate)
+  },
+  render(): VNode {
+    const slot = getDefaultSlot(this)
+    const content = slot?.({
+      node: this.node, item: this.node.data, selectChange: this.handleCheckChange,
+    })
+    return renderCompat(this, 'div', {
+      ref: 'node',
+      class: ['virtual-tree-node', {
+        'is-expanded': this.expanded,
+        'is-current': this.tree.highlightCurrent && this.node.isCurrent,
+        'is-hidden': !this.node.visible,
+      }],
+      style: { display: this.node.visible ? undefined : 'none' },
+      attrs: { tabindex: '-1', draggable: this.tree.draggable },
+      on: {
+        click: stopEvent(() => this.handleClick()),
+        contextmenu: this.handleContextMenu,
+        dragstart: stopEvent((event) => this.handleDragStart(event as DragEvent)),
+        dragover: stopEvent((event) => this.handleDragOver(event as DragEvent)),
+        dragend: stopEvent((event) => this.handleDragEnd(event as DragEvent)),
+        drop: stopEvent((event) => this.handleDrop(event as DragEvent)),
+      },
+    }, hasSlotContent(content) ? content : [
+      renderCompat(this, 'span', {
+        attrs: { 'aria-hidden': 'true' },
+        style: { minWidth: `${(this.node.level - 1) * this.tree.indent}px` },
+      }),
+      renderCompat(this, 'span', {
+        class: ['expand-icon', {
+          'is-leaf': this.node.isLeaf,
+          expanded: !this.node.isLeaf && this.expanded,
+        }, this.tree.iconClass || 'caret-right'],
+        on: { click: stopEvent(() => this.handleExpandIconClick()) },
+      }),
+      this.showCheckbox ? renderCompat(this, Checkbox, {
+        props: {
+          modelValue: this.node.checked,
+          indeterminate: this.node.indeterminate,
+          disabled: !!this.node.disabled,
+        },
+        on: { change: this.handleCheckChange },
+        nativeOn: { click: stopEvent() },
+      }) : null,
+      this.node.loading ? renderCompat(this, 'span', { class: 'loading-icon' }) : null,
+      renderCompat(this, 'span', { class: 'name' }, displayLabel(this, this.node.label)),
+    ])
   },
   methods: {
     init(parent: TreeParentCandidate | null): void {
@@ -242,8 +246,7 @@ export default defineComponent({
       const contextMenuListeners = this.tree._events?.['node-contextmenu']
 
       if (
-          Array.isArray(contextMenuListeners) &&
-          contextMenuListeners.length > 0
+          Array.isArray(contextMenuListeners) && contextMenuListeners.length > 0
       ) {
         event.stopPropagation()
         event.preventDefault()
@@ -279,37 +282,3 @@ export default defineComponent({
     },
   },
 })
-</script>
-
-<style lang="less" scoped>
-.virtual-tree-node{
-  width: 100%;
-  position: relative;
-  cursor: default;
-  white-space: nowrap;
-  outline: none;
-  display: flex;
-  align-items: center;
-  .expand-icon{
-    cursor: pointer;
-    color: #C0C4CC;
-    font-size: 12px;
-    transform: rotate(0deg);
-    transition: transform 0.3s ease-in-out;
-    &.no-transition{
-      transition:none;
-    }
-    &.expanded {
-      transform: rotate(90deg);
-    }
-  }
-  .caret-right:before {
-    content: ">";
-  }
-  .loading-icon {
-    margin-right: 8px;
-    font-size: 14px;
-    color: #C0C4CC;
-  }
-}
-</style>

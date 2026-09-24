@@ -20,13 +20,13 @@ test('defines isolated Vue 2 and Vue 3 workspace applications', async () => {
   }
 })
 
-test('dedupes Vue and consumes only published package entry points', async () => {
+test('dedupes Vue and consumes the published root entry in both runtimes', async () => {
   const vue2Main = await readFile(new URL('examples/vue2/src/main.ts', root), 'utf8')
   const vue3Main = await readFile(new URL('examples/vue3/src/main.ts', root), 'utf8')
 
-  assert.match(vue2Main, /@zjinh\/vue-virtual-tree\/vue2/)
-  assert.match(vue3Main, /@zjinh\/vue-virtual-tree(?:\/vue3)?['"]/)
   for (const source of [vue2Main, vue3Main]) {
+    assert.match(source, /import VueVirtualTree from ['"]@zjinh\/vue-virtual-tree['"]/)
+    assert.doesNotMatch(source, /@zjinh\/vue-virtual-tree\/vue[23]/)
     assert.match(source, /@zjinh\/vue-virtual-tree\/style\.css/)
     assert.doesNotMatch(source, /(?:\.\.\/)+src\//)
   }

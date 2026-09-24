@@ -1,36 +1,9 @@
-<template>
-  <section v-if="isEmpty" class="virtual-tree__empty-block">
-    <span class="virtual-tree__empty-text">{{ emptyText }}</span>
-  </section>
-  <virtualList
-      v-else
-      ref="virtualList"
-      :height="height"
-      :item-height="itemSize"
-      :listData="dataList">
-    <template v-slot="{ item }">
-      <virtualTreeNode
-          :node="item"
-          :item-size="itemSize"
-          :render-content="renderContent"
-          :show-checkbox="showCheckbox"
-          :select-children-only="selectChildrenOnly"
-          @check-change="handleCheckChange"
-          @node-expand="handleNodeExpand">
-        <template v-slot:default="{node,item,selectChange}">
-          <slot :node="node" :item="item" :selectChange="selectChange"></slot>
-        </template>
-      </virtualTreeNode>
-    </template>
-  </virtualList>
-</template>
-
-<script lang="ts">
 import { defineComponent } from 'vue'
-import type { PropType } from 'vue'
+import type { PropType, VNode } from 'vue'
+import { getDefaultSlot, renderCompat } from './components/render-compat'
 
 import virtualList from './components/virtualList'
-import virtualTreeNode from './components/virtual-tree-node.vue'
+import virtualTreeNode from './components/virtual-tree-node'
 import ModelNode from './model/node'
 import TreeStore from './model/tree-store'
 import type { TreeNodeReference } from './model/tree-store'
@@ -170,6 +143,35 @@ export default defineComponent({
     checkStrictly(newValue: boolean) {
       this.store.checkStrictly = newValue
     },
+  },
+  render(): VNode {
+    if (this.isEmpty) {
+      return renderCompat(this, 'section', { class: 'virtual-tree__empty-block' }, [
+        renderCompat(this, 'span', { class: 'virtual-tree__empty-text' }, this.emptyText),
+      ])
+    }
+    const slot = getDefaultSlot(this)
+    return renderCompat(this, virtualList, {
+      ref: 'virtualList',
+      props: { height: this.height, itemHeight: this.itemSize, listData: this.dataList },
+      scopedSlots: {
+        default: ({ item }: { item: ModelNode<TreeNodeData> }) =>
+          renderCompat(this, virtualTreeNode, {
+            props: {
+              node: item,
+              itemSize: this.itemSize,
+              renderContent: this.renderContent,
+              showCheckbox: this.showCheckbox,
+              selectChildrenOnly: this.selectChildrenOnly,
+            },
+            on: {
+              'check-change': this.handleCheckChange,
+              'node-expand': this.handleNodeExpand,
+            },
+            scopedSlots: slot ? { default: slot } : undefined,
+          }),
+      },
+    })
   },
   methods: {
     smoothTree(treeData: ModelNode<TreeNodeData>[]): ModelNode<TreeNodeData>[] {
@@ -449,4 +451,3 @@ export default defineComponent({
     this.root = this.store.root as ModelNode<TreeNodeData>
   },
 })
-</script>

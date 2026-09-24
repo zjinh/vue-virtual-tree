@@ -2,21 +2,13 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { promisify } from 'node:util'
 import { execFile } from 'node:child_process'
-import {
-  cp,
-  copyFile,
-  mkdir,
-  mkdtemp,
-  readdir,
-  readFile,
-  rm,
-} from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import test from 'node:test'
 
 const root = new URL('../', import.meta.url)
+const artifactPaths = ['index.d.ts', 'index.js', 'style.css']
 
 async function readDist(path) {
   return readFile(new URL(`dist/${path}`, root), 'utf8')
@@ -41,57 +33,46 @@ async function listFiles(directory, prefix = '') {
 test('emits only the allowlisted package artifacts', async () => {
   assert.deepEqual(
     await listFiles(fileURLToPath(new URL('../dist/', import.meta.url))),
-    [
-      'index.d.ts',
-      'style.css',
-      'vue2/index.js',
-      'vue2/style.css',
-      'vue3/index.js',
-      'vue3/style.css',
-    ],
+    artifactPaths,
   )
 })
 
-test('emits Vue 2 and Vue 3 ESM entry points', async () => {
-  const [vue2, vue3] = await Promise.all([
-    readDist('vue2/index.js'),
-    readDist('vue3/index.js'),
-  ])
+test('emits one ESM entry with Vue as its only external dependency', async () => {
+  const output = await readDist('index.js')
+  const dependencies = Array.from(
+    output.matchAll(/\bfrom\s+["']([^"']+)["']/g),
+    (match) => match[1],
+  )
 
-  for (const output of [vue2, vue3]) {
-    assert.match(output, /from\s+["']vue["']/)
-    assert.match(output, /export\s*\{[^}]*VueVirtualTree/)
-    assert.doesNotMatch(output, /@vue\/runtime-(?:core|dom)/)
-    assert.doesNotMatch(output, /__VUE_HMR_RUNTIME__/)
-  }
+  assert.deepEqual([...new Set(dependencies)], ['vue'])
+  assert.match(output, /export\s*\{[^}]*VueVirtualTree/)
+  assert.doesNotMatch(output, /\b(?:require|import)\s*\(/)
+  assert.doesNotMatch(output, /@vue\/runtime-(?:core|dom)/)
+  assert.doesNotMatch(output, /__VUE_HMR_RUNTIME__/)
 })
 
-test('emits one public stylesheet covering both scoped builds', async () => {
-  const [publicCss, vue2Css, vue3Css] = await Promise.all([
-    readDist('style.css'),
-    readDist('vue2/style.css'),
-    readDist('vue3/style.css'),
-  ])
+test('emits one stylesheet with stable node and checkbox scopes', async () => {
+  const publicCss = await readDist('style.css')
 
   assert.ok(publicCss.length > 0)
-  assert.equal(publicCss, `${vue2Css}\n${vue3Css}`)
+  assert.match(publicCss, /\.virtual-tree\s*\{/)
+  assert.match(publicCss, /\.virtual-tree-node\[data-v-vvt-node\]/)
+  assert.match(publicCss, /\.expand-icon\[data-v-vvt-node\]/)
+  assert.match(publicCss, /\.checkbox-wrapper\[data-v-vvt-checkbox\]/)
+  assert.match(publicCss, /\.checkbox\[data-v-vvt-checkbox\]/)
+  assert.equal((publicCss.match(/\.virtual-tree\s*\{/g) ?? []).length, 1)
 })
 
 test('consecutive builds emit byte-identical artifacts', async () => {
   const run = promisify(execFile)
   const pnpmCli = process.env.npm_execpath
   assert.ok(pnpmCli, 'npm_execpath must point to the pnpm JavaScript CLI')
-  const paths = [
-    'index.d.ts',
-    'style.css',
-    'vue2/index.js',
-    'vue2/style.css',
-    'vue3/index.js',
-    'vue3/style.css',
-  ]
-  const snapshot = async () => Promise.all(
-    paths.map(async (path) => createHash('sha256').update(await readDist(path)).digest('hex')),
-  )
+  const snapshot = async () => {
+    assert.deepEqual(await listFiles(fileURLToPath(new URL('dist/', root))), artifactPaths)
+    return Promise.all(artifactPaths.map(async (path) => (
+      createHash('sha256').update(await readDist(path)).digest('hex')
+    )))
+  }
 
   await run(process.execPath, [pnpmCli, 'run', 'build'], { cwd: fileURLToPath(root) })
   const firstBuild = await snapshot()
@@ -108,56 +89,30 @@ test('emits a public declaration contract', async () => {
   assert.match(declarations, /export default/)
 })
 
-test('entry points expose default, named, and install APIs', async () => {
-  const [vue2, vue3] = await Promise.all([
-    import(new URL('../dist/vue2/index.js', import.meta.url)),
-    import(new URL('../dist/vue3/index.js', import.meta.url)),
+test('root entry exposes the public API and rejects removed version subpaths', async () => {
+  const [entry, direct] = await Promise.all([
+    import('@zjinh/vue-virtual-tree'),
+    import(new URL('../dist/index.js', import.meta.url)),
   ])
 
-  for (const entry of [vue2, vue3]) {
-    assert.equal(entry.default, entry.VueVirtualTree)
-    assert.equal(typeof entry.VueVirtualTree.install, 'function')
-    assert.equal(typeof entry.Node, 'function')
-    assert.equal(typeof entry.TreeStore, 'function')
-
-    let registration
-    entry.VueVirtualTree.install({
-      component(name, component) {
-        registration = { name, component }
-      },
-    })
-    assert.deepEqual(registration, {
-      name: 'VueVirtualTree',
-      component: entry.VueVirtualTree,
-    })
+  assert.equal(direct, entry)
+  for (const path of ['vue2', 'vue3']) {
+    await assert.rejects(import(`@zjinh/vue-virtual-tree/${path}`), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' })
   }
-})
+  assert.deepEqual(Object.keys(entry).sort(), ['Node', 'TreeStore', 'VueVirtualTree', 'default'])
+  assert.equal(entry.default, entry.VueVirtualTree)
+  assert.equal(typeof entry.VueVirtualTree.install, 'function')
+  assert.equal(typeof entry.Node, 'function')
+  assert.equal(typeof entry.TreeStore, 'function')
 
-test('loads the Vue 2 build against the Vue 2.7 runtime', async () => {
-  const temporaryRoot = await mkdtemp(join(tmpdir(), 'vue-virtual-tree-vue2-'))
-
-  try {
-    const temporaryNodeModules = join(temporaryRoot, 'node_modules')
-    const temporaryEntry = join(temporaryRoot, 'index.mjs')
-    const vue2Runtime = fileURLToPath(new URL('../node_modules/vue2', import.meta.url))
-
-    await mkdir(temporaryNodeModules)
-    const temporaryVue2Runtime = join(temporaryNodeModules, 'vue')
-    await cp(vue2Runtime, temporaryVue2Runtime, {
-      dereference: true,
-      recursive: true,
-    })
-    await copyFile(
-      fileURLToPath(new URL('../dist/vue2/index.js', import.meta.url)),
-      temporaryEntry,
-    )
-
-    const entry = await import(pathToFileURL(temporaryEntry).href)
-    const vue = await import(pathToFileURL(join(temporaryVue2Runtime, 'dist/vue.runtime.mjs')).href)
-
-    assert.match(vue.version, /^2\.7\./)
-    assert.equal(typeof entry.VueVirtualTree.install, 'function')
-  } finally {
-    await rm(temporaryRoot, { recursive: true, force: true })
-  }
+  let registration
+  entry.VueVirtualTree.install({
+    component(name, component) {
+      registration = { name, component }
+    },
+  })
+  assert.deepEqual(registration, {
+    name: 'VueVirtualTree',
+    component: entry.VueVirtualTree,
+  })
 })

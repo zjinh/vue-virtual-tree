@@ -4,7 +4,7 @@ import VueVirtualTree, {
   VueVirtualTree as NamedVueVirtualTree,
   type VueVirtualTreePlugin,
   type VueVirtualTreeRegistrar,
-} from '@zjinh/vue-virtual-tree/vue2'
+} from '@zjinh/vue-virtual-tree'
 import SourceVueVirtualTree, {
   Node as SourceNode,
   TreeStore as SourceTreeStore,
@@ -43,7 +43,7 @@ import {
   type VueVirtualTreeInstance,
   type VueVirtualTreeNodeInstance,
   type VueVirtualTreeProps,
-} from '@zjinh/vue-virtual-tree/vue2'
+} from '@zjinh/vue-virtual-tree'
 
 type Equal<Left, Right> =
   (<Value>() => Value extends Left ? 1 : 2) extends

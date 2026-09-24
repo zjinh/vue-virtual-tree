@@ -71,7 +71,9 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
     if (this.lazy && this.load) {
       const loadFn = this.load;
       const root = this.root
+      const loadVersion = root._loadVersion
       loadFn(root, (data) => {
+        if (root._loadVersion !== loadVersion) return
         root.doCreateChildren(data);
         this._initDefaultCheckedNodes();
       });
@@ -117,6 +119,7 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
 
   setData(newVal: T[]): void {
     if (!this.root) return
+    this.data = newVal
     const instanceChanged = newVal !== (this.root.data as unknown as T[]);
     if (instanceChanged) {
       this.root.setData(newVal);
@@ -147,15 +150,12 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
     const node = this.getNode(data);
 
     if (node && node.parent) {
-      if (node === this.currentNode) {
-        this.currentNode = null;
-      }
       node.parent.removeChild(node);
     }
   }
 
   append(data: T, parentData?: TreeNodeReference<T> | null): void {
-    const parentNode = parentData ? this.getNode(parentData) : this.root;
+    const parentNode = parentData == null ? this.root : this.getNode(parentData);
 
     if (parentNode) {
       parentNode.insertChild({ data });
@@ -205,7 +205,7 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
 
   deregisterNode(node: Node<T>): void {
     const key = this.key;
-    if (!key || !node || !node.data) return;
+    if (!node) return;
 
     // 性能优化：使用迭代而不是递归，避免调用栈过深
     const nodesToRemove = [node];
@@ -213,6 +213,13 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
     while (nodesToRemove.length > 0) {
       const currentNode = nodesToRemove.pop();
       if (!currentNode) continue
+      currentNode._loadVersion += 1
+      currentNode.loading = false
+
+      if (currentNode === this.currentNode) {
+        currentNode.isCurrent = false
+        this.currentNode = null
+      }
 
       // 添加子节点到待处理队列
       if (currentNode.childNodes && currentNode.childNodes.length > 0) {
@@ -221,7 +228,7 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
 
       // 删除节点映射
       const currentNodeKey = currentNode.key
-      if (currentNodeKey !== undefined && currentNodeKey !== null) {
+      if (key && currentNodeKey !== undefined && currentNodeKey !== null) {
         delete this.nodesMap[currentNodeKey];
       }
     }
@@ -302,13 +309,17 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
   updateChildren(key: TreeKey, data: T[]): void {
     const node = this.nodesMap[key];
     if (!node) return;
+    node._loadVersion += 1;
+    node.loading = false;
+    // The caller may pass node.data.children itself; snapshot before clearing it.
+    const replacements = data.slice();
 
     // 性能优化：批量清理子节点，避免逐个调用remove
     this._batchRemoveChildren(node);
 
     // 批量添加新的子节点
-    for (let i = 0, j = data.length; i < j; i++) {
-      const child = data[i];
+    for (let i = 0, j = replacements.length; i < j; i++) {
+      const child = replacements[i];
       this.append(child, node.data);
     }
   }
@@ -316,40 +327,21 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
   // 新增：批量清理子节点的优化方法
   _batchRemoveChildren(parentNode: Node<T>): void {
     const childNodes = parentNode.childNodes;
-    if (!childNodes || childNodes.length === 0) return;
 
-    // 批量注销所有子孙节点，避免递归调用
-    const nodesToDeregister: Node<T>[] = [];
-    const collectNodes = (node: Node<T>): void => {
-      nodesToDeregister.push(node);
-      if (node.childNodes) {
-        node.childNodes.forEach(collectNodes);
-      }
-    };
-
-    // 收集所有需要注销的节点
-    childNodes.forEach(collectNodes);
-
-    // 批量注销节点
-    nodesToDeregister.forEach(node => {
-      const nodeKey = node.key
-      if (nodeKey !== undefined && nodeKey !== null) {
-        delete this.nodesMap[nodeKey];
-      }
-      // 清理当前节点引用
-      if (node === this.currentNode) {
-        this.currentNode = null;
-      }
-    });
+    // Use the same subtree cleanup as remove, including pending lazy loads.
+    for (const child of childNodes) {
+      this.deregisterNode(child);
+      child.parent = null;
+    }
 
     // 清理父节点的children数据
     const children = parentNode.getChildren();
     if (children) {
-      children.length = 0; // 清空数组
+      children.splice(0); // Vue 2 must observe this mutation too.
     }
 
     // 清空childNodes数组
-    parentNode.childNodes.length = 0;
+    parentNode.childNodes.splice(0);
 
     // 更新父节点的叶子状态
     parentNode.updateLeafState();

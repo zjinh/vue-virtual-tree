@@ -49,25 +49,17 @@ test('declares the pnpm workspace and reproducible toolchain', async () => {
   )
 })
 
-test('publishes Vue 3 by default and explicit Vue 2 and Vue 3 subpaths', () => {
-  assert.equal(packageJson.main, './dist/vue3/index.js')
-  assert.equal(packageJson.module, './dist/vue3/index.js')
+test('publishes only one universal component entry', () => {
+  assert.equal(packageJson.main, './dist/index.js')
+  assert.equal(packageJson.module, './dist/index.js')
   assert.equal(packageJson.types, './dist/index.d.ts')
-  assert.deepEqual(packageJson.exports['.'], {
+  const entry = {
     types: './dist/index.d.ts',
-    import: './dist/vue3/index.js',
-    default: './dist/vue3/index.js',
-  })
-  assert.deepEqual(packageJson.exports['./vue2'], {
-    types: './dist/index.d.ts',
-    import: './dist/vue2/index.js',
-    default: './dist/vue2/index.js',
-  })
-  assert.deepEqual(packageJson.exports['./vue3'], {
-    types: './dist/index.d.ts',
-    import: './dist/vue3/index.js',
-    default: './dist/vue3/index.js',
-  })
+    import: './dist/index.js',
+    default: './dist/index.js',
+  }
+  assert.deepEqual(packageJson.exports['.'], entry)
+  assert.deepEqual(Object.keys(packageJson.exports), ['.', './style.css', './package.json'])
   assert.equal(packageJson.exports['./style.css'], './dist/style.css')
   assert.equal(packageJson.exports['./package.json'], './package.json')
 })
@@ -149,20 +141,16 @@ test('keeps the tree model exclusively in TypeScript and inside package typechec
   assert.ok(!tsconfig.include.includes('src/**/*.js'))
 })
 
-test('keeps component SFC scripts in TypeScript and inside the SFC typecheck gate', async () => {
+test('keeps universal component render functions in the strict TypeScript gate', async () => {
   const componentFiles = [
-    'src/index.vue',
-    'src/components/checkbox.vue',
-    'src/components/virtual-tree-node.vue',
+    'src/tree.ts',
+    'src/components/checkbox.ts',
+    'src/components/virtual-tree-node.ts',
   ]
 
   for (const componentFile of componentFiles) {
     const source = await readFile(new URL(componentFile, root), 'utf8')
-    assert.match(
-      source,
-      /<script\s+[^>]*lang=["']ts["'][^>]*>/,
-      `${componentFile} must use a TypeScript script block`,
-    )
+    assert.match(source, /render\(/, `${componentFile} must render without a runtime-specific template compiler`)
   }
 
   const virtualList = await readFile(
@@ -189,9 +177,9 @@ test('documents 21 supported props and one unsupported renderContent placeholder
   assert.doesNotMatch(publicEntry, /export interface VueVirtualTreeRenderContext/)
   assert.doesNotMatch(publicEntry, /export type VueVirtualTreeRenderContent/)
 
-  const treeComponent = await readFile(new URL('src/index.vue', root), 'utf8')
+  const treeComponent = await readFile(new URL('src/tree.ts', root), 'utf8')
   const nodeComponent = await readFile(
-    new URL('src/components/virtual-tree-node.vue', root),
+    new URL('src/components/virtual-tree-node.ts', root),
     'utf8',
   )
   for (const component of [treeComponent, nodeComponent]) {
@@ -203,7 +191,7 @@ test('documents 21 supported props and one unsupported renderContent placeholder
   }
 
   const heightProp = treeComponent.match(/height:\s*\{[\s\S]*?\n\s*\},/)?.[0]
-  assert.ok(heightProp, 'src/index.vue must declare the height prop as an object')
+  assert.ok(heightProp, 'src/tree.ts must declare the height prop as an object')
   assert.match(heightProp, /default:\s*'100%'/)
   assert.doesNotMatch(heightProp, /required:\s*true/)
 
@@ -281,13 +269,11 @@ test('runs nested builds through Node and the pnpm JavaScript CLI', async () => 
 test('finalizes public artifacts without module-level build coordination', async () => {
   const config = await readFile(new URL('tsdown.config.ts', root), 'utf8')
   assert.doesNotMatch(config, /completedBuilds|cleanedPublicFiles|publishContract/)
-  assert.equal(config.match(/clean:\s*true/g)?.length, 2)
-  assert.match(config, /Vue 2 compiler types differ from the root Vue 3 compiler types/)
-  assert.match(config, /as unknown as NonNullable<\s*Vue2PluginOptions\['compiler'\]/)
+  assert.equal(config.match(/clean:\s*true/g)?.length, 1)
+  assert.doesNotMatch(config, /plugin-vue2|unplugin-vue/)
 
   const finalizer = await readFile(new URL('scripts/finalize-build.mjs', root), 'utf8')
-  assert.match(finalizer, /dist\/vue2\/style\.css/)
-  assert.match(finalizer, /dist\/vue3\/style\.css/)
+  assert.match(finalizer, /dist\/style\.css/)
   assert.match(finalizer, /rename/)
 })
 

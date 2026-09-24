@@ -3,8 +3,6 @@ import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const vue2CssUrl = new URL('../dist/vue2/style.css', import.meta.url)
-const vue3CssUrl = new URL('../dist/vue3/style.css', import.meta.url)
 const generatedDeclarationUrl = new URL('../dist/.declarations/index.d.ts', import.meta.url)
 const publicCssUrl = new URL('../dist/style.css', import.meta.url)
 const publicDeclarationUrl = new URL('../dist/index.d.ts', import.meta.url)
@@ -34,16 +32,11 @@ async function writeAtomically(url, content) {
   }
 }
 
-const [vue2Css, vue3Css, declaration] = await Promise.all([
-  readRequired(vue2CssUrl, 'dist/vue2/style.css'),
-  readRequired(vue3CssUrl, 'dist/vue3/style.css'),
-  readRequired(generatedDeclarationUrl, 'generated index.d.ts'),
-])
-
-await Promise.all([
-  writeAtomically(publicCssUrl, `${vue2Css}\n${vue3Css}`),
-  writeAtomically(publicDeclarationUrl, declaration),
-])
+// Validate the single shared stylesheet; declarations remain generated from the
+// public TypeScript entry without leaking internal component implementation types.
+await readRequired(publicCssUrl, 'dist/style.css')
+const declaration = await readRequired(generatedDeclarationUrl, 'generated index.d.ts')
+await writeAtomically(publicDeclarationUrl, declaration)
 
 await rm(new URL('../dist/.declarations/', import.meta.url), {
   force: true,

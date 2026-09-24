@@ -5,7 +5,7 @@ import DemoApp from '../../examples/shared/App.vue'
 import { countTreeNodes } from '../../examples/shared/data'
 import type { DemoTreeNode } from '../../examples/shared/data'
 import VirtualList from '../../src/components/virtualList'
-import TreeComponent from '../../src/index.vue'
+import TreeComponent from '@zjinh/vue-virtual-tree'
 import type {
   TreeNode,
   TreeStore,

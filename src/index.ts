@@ -1,6 +1,6 @@
 import type { Component } from 'vue'
 
-import TreeComponent from './index.vue'
+import TreeComponent from './tree'
 import ModelNode from './model/node'
 import ModelTreeStore from './model/tree-store'
 
