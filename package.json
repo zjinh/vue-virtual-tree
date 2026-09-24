@@ -1,7 +1,7 @@
 {
   "name": "@zjinh/vue-virtual-tree",
   "description": "A virtual tree component for Vue 2.7 and Vue 3",
-  "version": "1.0.3",
+  "version": "2.0.0",
   "author": "zjinh",
   "license": "MIT",
   "private": false,
