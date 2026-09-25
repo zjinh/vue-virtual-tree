@@ -609,13 +609,14 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
     await settle()
     expect(result.instance.busy).toBe(false)
 
-    const datasetLoad = result.instance.loadDataset(100_000)
+    // This checks async busy ownership, not throughput on the CI runner.
+    const datasetLoad = result.instance.loadDataset(1_000)
     expect(result.instance.busy).toBe(true)
-    expect(result.instance.busyLabel).toBe('Generating 100,000 nodes')
+    expect(result.instance.busyLabel).toBe('Generating 1,000 nodes')
 
     await staleMethodRun
     expect(result.instance.busy).toBe(true)
-    expect(result.instance.busyLabel).toBe('Generating 100,000 nodes')
+    expect(result.instance.busyLabel).toBe('Generating 1,000 nodes')
 
     await vi.runAllTimersAsync()
     await datasetLoad
