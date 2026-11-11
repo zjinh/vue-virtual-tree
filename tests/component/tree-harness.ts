@@ -36,7 +36,7 @@ export function cleanupTrees(): void {
   while (mounted.length) mounted.pop()!()
 }
 
-export async function mountTree(overrides: VueVirtualTreeProps<Item> = {}, slot?: Slot) {
+export async function mountTree(overrides: VueVirtualTreeProps<Item> = {}, slot?: Slot, onEvent?: (name: string, args: unknown[]) => void, listenInitially = true) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const props = Vue.reactive({
@@ -55,9 +55,11 @@ export async function mountTree(overrides: VueVirtualTreeProps<Item> = {}, slot?
     ...overrides,
   }) as VueVirtualTreeProps<Item>
   const events: Record<string, unknown[][]> = {}
+  const listening = Vue.ref(listenInitially)
   const names = ['node-click', 'node-expand', 'node-collapse', 'node-contextmenu', 'current-change', 'check-change', 'check']
   const listeners = Object.fromEntries(names.map((name) => [name, (...args: unknown[]) => {
     (events[name] ??= []).push(args)
+    onEvent?.(name, args)
   }]))
   let instance: VueVirtualTreeInstance<Item> | undefined
   let unmount: () => void
@@ -68,7 +70,7 @@ export async function mountTree(overrides: VueVirtualTreeProps<Item> = {}, slot?
         return h(TreeComponent, {
           props: { ...props },
           ref: 'tree',
-          on: listeners,
+          on: listening.value ? listeners : {},
           scopedSlots: slot ? { default: (scope: VueVirtualTreeDefaultSlotProps<Item>) => slot(scope, h) } : undefined,
         })
       },
@@ -86,7 +88,7 @@ export async function mountTree(overrides: VueVirtualTreeProps<Item> = {}, slot?
       render() {
         return runtime.h(TreeComponent, {
           ...props,
-          ...vue3Listeners,
+          ...(listening.value ? vue3Listeners : {}),
           ref: (value: unknown) => { instance = value as VueVirtualTreeInstance<Item> },
         }, slot ? { default: (scope: VueVirtualTreeDefaultSlotProps<Item>) => slot(scope, runtime.h) } : undefined)
       },
@@ -97,7 +99,7 @@ export async function mountTree(overrides: VueVirtualTreeProps<Item> = {}, slot?
   mounted.push(() => { unmount(); host.remove() })
   await settle()
   if (!instance) throw new Error('Tree did not mount')
-  return { host, instance, props, events }
+  return { host, instance, props, events, listening }
 }
 
 export const labels = (host: HTMLElement): string[] =>

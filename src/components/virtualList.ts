@@ -27,6 +27,7 @@ interface ScrollData {
 interface IndexedListItem {
   index: number
   item: unknown
+  renderRow?: boolean
 }
 
 type ScrollEvent = Event | { target: HTMLElement }
@@ -93,6 +94,8 @@ export default defineComponent({
   name: 'virtualList',
   emits: ['scroll', 'scrollEnd', 'scrolling', 'scrollDown'],
   props: {
+    // The tree retains its original row-observation range independently of DOM.
+    observationBufferScale: { type: Number, default: 0 },
     listData: {
       type: Array as PropType<unknown[]>,
       required: true,
@@ -104,7 +107,8 @@ export default defineComponent({
     },
     bufferScale: {
       type: Number,
-      default: 4,
+      // Keep one viewport on each side; scrolling updates the window directly.
+      default: 1,
     },
     scrollEndDistance: {
       type: Number,
@@ -141,12 +145,9 @@ export default defineComponent({
     const scrollToIndexTimers = new Set<ReturnType<typeof setTimeout>>()
 
     const elm: ComputedRef<HTMLElement | null> = computed(() => virtualList.value)
-    const indexedListData = computed<IndexedListItem[]>(() => {
-      if (!ready.value) return []
-      return props.listData.map((item, index) => ({ index, item }))
-    })
+    const listLength = computed(() => ready.value ? props.listData.length : 0)
     const anchorPoint = computed(() => {
-      if (indexedListData.value.length === 0) return null
+      if (listLength.value === 0) return null
       return {
         top: start.value * props.itemHeight,
         bottom: (start.value + 1) * props.itemHeight,
@@ -164,10 +165,15 @@ export default defineComponent({
         props.bufferScale * visibleCount.value,
       ),
     )
-    const renderListData = computed(() => {
+    const renderListData = computed<IndexedListItem[]>(() => {
+      if (!ready.value) return []
       const startIndex = start.value - Math.max(0, aboveCount.value)
       const endIndex = end.value + Math.max(1, belowCount.value)
-      return indexedListData.value.slice(startIndex, endIndex)
+      const observationBuffer = Math.max(props.bufferScale, props.observationBufferScale) * visibleCount.value
+      const observedStart = Math.max(0, start.value - observationBuffer)
+      const observedEnd = Math.min(props.listData.length, end.value + Math.max(1, observationBuffer))
+      return props.listData.slice(observedStart, observedEnd)
+        .map((item, index) => ({ item, index: observedStart + index, renderRow: observedStart + index >= startIndex && observedStart + index < endIndex }))
     })
     const listHeight = computed(() => ({
       height: typeof props.height === 'number' ? `${props.height}px` : props.height,
@@ -348,7 +354,7 @@ export default defineComponent({
 
       const element = elm.value
       if (!element) return
-      const listIndex = Math.min(index, indexedListData.value.length - 1)
+      const listIndex = Math.min(index, listLength.value - 1)
       let scrollTop = Math.floor(listIndex * props.itemHeight)
       const currentScrollHeight = getScrollHeight()
 
@@ -438,7 +444,7 @@ export default defineComponent({
       const element = elm.value
       if (content.value && element) {
         element.scrollTop = scrollTopCache
-        updatePhantomStyle(`${indexedListData.value.length * props.itemHeight}px`)
+        updatePhantomStyle(`${listLength.value * props.itemHeight}px`)
         content.value.style.transform = `translate3d(0,${startOffset.value}px,0)`
       }
       active.value = true
@@ -488,6 +494,7 @@ export default defineComponent({
               slots.default?.({
                 item: entry.item,
                 index: entry.index,
+                renderRow: entry.renderRow,
               }),
             ),
           ),

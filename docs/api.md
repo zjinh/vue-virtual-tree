@@ -86,7 +86,7 @@ The public event map contains 7 events.
 | `node-collapse` | `data, node, instance` | `[data: T, node: Node<T>, instance: VueVirtualTreeNodeInstance<T>]` | The built-in expand control collapsed a node. |
 | `node-contextmenu` | `event, data, node, instance` | `[event: MouseEvent, data: T, node: Node<T>, instance: VueVirtualTreeNodeInstance<T>]` | The first argument is the native `MouseEvent`. |
 | `current-change` | `data, node` | `[data: T \| null, node: Node<T> \| null]` | Both values can be `null` in the public event type. |
-| `check-change` | `data, checked, indeterminate` | `[data: T, checked: boolean, indeterminate: boolean]` | A node's checkbox state changed. |
+| `check-change` | `data, checked, indeterminate` | `[data: T, checked: boolean, indeterminate: boolean]` | A row's checkbox state changed. Notifications retain the legacy observation window (up to four viewports above and below); they are not a whole-tree change stream. Reusing a row during scrolling can also notify. |
 | `check` | `data, state` | `[data: T, state: VueVirtualTreeCheckState<T>]` | `state` is `VueVirtualTreeCheckState<T>`. |
 
 `VueVirtualTreeCheckState<T>` contains `checkedNodes`, `checkedKeys`, `halfCheckedNodes`, and `halfCheckedKeys`. It can also contain `selectedLeafNodes` and `selectedLeafKeys` when `selectChildrenOnly` is enabled.

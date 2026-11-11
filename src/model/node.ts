@@ -239,7 +239,8 @@ export default class Node<T extends TreeNodeData = TreeNodeData> {
     }
 
     for (let i = 0, j = children.length; i < j; i++) {
-      this.insertChild({ data: children[i] });
+      // The source array already contains this child; avoid a sibling search.
+      this.insertChild({ data: children[i] }, undefined, true);
     }
     this.updateLeafState()
   }

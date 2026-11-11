@@ -354,14 +354,14 @@ export default class TreeStore<T extends TreeNodeData = TreeNodeData> {
   ): void {
     const allNodes = this._getAllNodes().sort((a, b) => b.level - a.level);
     const cache: Partial<Record<TreeKey, true>> = Object.create(null);
-    const keys = Object.keys(checkedKeys);
+    // Preserve propagation order, including synchronous observers.
     allNodes.forEach((node) => node.setChecked(false, false));
     for (let i = 0, j = allNodes.length; i < j; i++) {
       const node = allNodes[i];
       const rawNodeKey = node.data[key] as TreeKey | null | undefined
       if (rawNodeKey === null || rawNodeKey === undefined) continue
       const nodeKey = rawNodeKey.toString();
-      let checked = keys.indexOf(nodeKey) > -1;
+      const checked = Object.prototype.hasOwnProperty.call(checkedKeys, nodeKey);
       if (!checked) {
         if (node.checked && !cache[nodeKey]) {
           node.setChecked(false, false);

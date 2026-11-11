@@ -340,7 +340,7 @@ const mountDemoApp = async (): Promise<DemoAppMountResult> => {
   return result
 }
 
-const mountVirtualList = async (): Promise<VirtualListMountResult> => {
+const mountVirtualList = async (listData: readonly number[] = Array.from({ length: 200 }, (_, index) => index)): Promise<VirtualListMountResult> => {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const events = {
@@ -348,10 +348,9 @@ const mountVirtualList = async (): Promise<VirtualListMountResult> => {
     scrollEnd: [] as unknown[][],
   }
   const props = {
-    bufferScale: 1,
     height: '100px',
     itemHeight: 20,
-    listData: Array.from({ length: 200 }, (_, index) => index),
+    listData,
   }
 
   let rawUnmount: () => void
@@ -832,6 +831,31 @@ describe(`${__VUE_RUNTIME__} component runtime`, () => {
 
     expect(rendered).toBeGreaterThan(0)
     expect(rendered).toBeLessThan(150)
+  })
+
+  test('reads only the rendered window and preserves absolute slot indices while scrolling', async () => {
+    let reads = 0
+    const data = new Proxy(Object.freeze(Array.from({ length: 2000 }, (_, index) => index)), {
+      get(target, key, receiver) {
+        if (typeof key === 'string' && /^\d+$/.test(key)) reads += 1
+        return Reflect.get(target, key, receiver)
+      },
+    })
+    const result = await mountVirtualList(data)
+    const indices = () => Array.from(result.host.querySelectorAll('.virtual-item'), node => Number(node.textContent))
+    expect(indices()).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    expect(reads).toBeLessThan(100)
+    const element = result.host.querySelector<HTMLElement>('.virtual-tree')!
+    reads = 0
+    element.scrollTop = 2000
+    element.dispatchEvent(new Event('scroll'))
+    await settle()
+    expect(indices()).toEqual(Array.from({ length: 15 }, (_, index) => 95 + index))
+    expect(reads).toBeLessThan(100)
+    element.scrollTop = 39900
+    element.dispatchEvent(new Event('scroll'))
+    await settle()
+    expect(indices()).toEqual(Array.from({ length: 10 }, (_, index) => 1990 + index))
   })
 
   test('isolates scroll state between two virtual list instances', async () => {

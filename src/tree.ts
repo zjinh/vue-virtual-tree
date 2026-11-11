@@ -153,12 +153,17 @@ export default defineComponent({
     const slot = getDefaultSlot(this)
     return renderCompat(this, virtualList, {
       ref: 'virtualList',
-      props: { height: this.height, itemHeight: this.itemSize, listData: this.dataList },
+      props: {
+        height: this.height, itemHeight: this.itemSize, listData: this.dataList,
+        // Custom content owns lifecycle and local state: retain its old window.
+        bufferScale: slot ? 4 : 1, observationBufferScale: 4,
+      },
       scopedSlots: {
-        default: ({ item }: { item: ModelNode<TreeNodeData> }) =>
+        default: ({ item, renderRow }: { item: ModelNode<TreeNodeData>; renderRow?: boolean }) =>
           renderCompat(this, virtualTreeNode, {
             props: {
               node: item,
+              renderRow,
               itemSize: this.itemSize,
               renderContent: this.renderContent,
               showCheckbox: this.showCheckbox,
@@ -175,18 +180,34 @@ export default defineComponent({
   },
   methods: {
     smoothTree(treeData: ModelNode<TreeNodeData>[]): ModelNode<TreeNodeData>[] {
-      return treeData.reduce<ModelNode<TreeNodeData>[]>((smoothNodes, node) => {
+      const smoothNodes: ModelNode<TreeNodeData>[] = []
+      // Types are primitive strings with few distinct values (depth/state).
+      // Reuse them within this traversal without changing stored-value timing.
+      const types = new Map<string, string>()
+      // One output array; iterators grow with depth, not sibling count.
+      // Vue 3 tracks array iteration without subscribing to every index.
+      const frames = [treeData[Symbol.iterator]()]
+      while (frames.length > 0) {
+        const next = frames[frames.length - 1].next()
+        if (next.done) {
+          frames.pop()
+          continue
+        }
+        const node = next.value
         if (node.visible) {
-          node.type = this.showCheckbox
+          const type = this.showCheckbox
             ? `${node.level}-${node.checked}-${node.indeterminate}`
             : `${node.level}-${node.expanded}`
+          const sharedType = types.get(type)
+          if (sharedType === undefined) types.set(type, type)
+          node.type = sharedType ?? type
           smoothNodes.push(node)
         }
         if (node.expanded && node.childNodes.length > 0) {
-          smoothNodes.push(...this.smoothTree(node.childNodes))
+          frames.push(node.childNodes[Symbol.iterator]())
         }
-        return smoothNodes
-      }, [])
+      }
+      return smoothNodes
     },
     filter<Value = unknown>(value: Value): void {
       if (!this.filterNodeMethod) {
@@ -356,15 +377,21 @@ export default defineComponent({
       }
 
       this.$nextTick(() => {
+        const checkedNodes = this.store.getCheckedNodes()
+        const halfCheckedNodes = this.store.getHalfCheckedNodes()
+        const keysOf = (nodes: TreeNodeData[]): Array<TreeKey | undefined> =>
+          nodes.map((data) => this.store.key
+            ? (data as Record<string, unknown>)[this.store.key] as TreeKey | undefined
+            : undefined)
         const eventData: VueVirtualTreeCheckState<TreeNodeData> = {
-          checkedNodes: this.store.getCheckedNodes(),
-          checkedKeys: this.store.getCheckedKeys(),
-          halfCheckedNodes: this.store.getHalfCheckedNodes(),
-          halfCheckedKeys: this.store.getHalfCheckedKeys(),
+          checkedNodes,
+          checkedKeys: keysOf(checkedNodes),
+          halfCheckedNodes,
+          halfCheckedKeys: keysOf(halfCheckedNodes),
         }
         if (this.selectChildrenOnly) {
           eventData.selectedLeafNodes = this.store.getSelectedLeafNodes()
-          eventData.selectedLeafKeys = this.store.getSelectedLeafKeys()
+          eventData.selectedLeafKeys = keysOf(eventData.selectedLeafNodes)
         }
         this.$emit('check', node.data, eventData)
       })

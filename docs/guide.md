@@ -30,6 +30,8 @@ Virtualization limits mounted DOM rows. It does not remove the in-memory tree mo
 
 Filtering, bulk checking, and other whole-tree operations can still scale with the number of logical nodes.
 
+Built-in rows render one viewport plus one viewport of buffer on each side: about three screens in the middle and two at the edges. Custom slots retain the original four-viewport buffer on each side to preserve component lifecycle and local state; their DOM savings differ from built-in rows. Lightweight row observers retain the original four-viewport buffer on each side, independently of rendered content. Selection notifications and raw children watchers keep their original window and Vue-version behavior; they do not observe every collapsed or filtered node. Prefer `append`, `remove` and `updateKeyChildren` for local structural changes.
+
 <!-- section:checkbox-current -->
 ## Checkbox and current-node state
 

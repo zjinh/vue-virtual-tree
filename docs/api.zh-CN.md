@@ -86,7 +86,7 @@ Vue 2.7 与 Vue 3 共用 `@zjinh/vue-virtual-tree` 根入口和本页所列的�
 | `node-collapse` | `data, node, instance` | `[data: T, node: Node<T>, instance: VueVirtualTreeNodeInstance<T>]` | 内置展开控件收起节点。 |
 | `node-contextmenu` | `event, data, node, instance` | `[event: MouseEvent, data: T, node: Node<T>, instance: VueVirtualTreeNodeInstance<T>]` | 第一个参数是原生 `MouseEvent`。 |
 | `current-change` | `data, node` | `[data: T \| null, node: Node<T> \| null]` | 公开事件类型中的两个值都允许为 `null`。 |
-| `check-change` | `data, checked, indeterminate` | `[data: T, checked: boolean, indeterminate: boolean]` | 节点复选状态发生变化。 |
+| `check-change` | `data, checked, indeterminate` | `[data: T, checked: boolean, indeterminate: boolean]` | 行节点复选状态发生变化。通知保留原版观察范围（上下最多各四屏），不代表全树变更流；滚动复用行时也可能通知。 |
 | `check` | `data, state` | `[data: T, state: VueVirtualTreeCheckState<T>]` | `state` 为 `VueVirtualTreeCheckState<T>`。 |
 
 `VueVirtualTreeCheckState<T>` 包含 `checkedNodes`、`checkedKeys`、`halfCheckedNodes` 和 `halfCheckedKeys`。启用 `selectChildrenOnly` 时，还可能包含 `selectedLeafNodes` 与 `selectedLeafKeys`。

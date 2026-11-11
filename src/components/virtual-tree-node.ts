@@ -48,6 +48,8 @@ export default defineComponent({
     Checkbox,
   },
   props: {
+    // Retain legacy row watchers outside the smaller DOM window.
+    renderRow: { type: Boolean, default: true },
     itemSize: {
       type: Number,
       default: 26,
@@ -97,7 +99,8 @@ export default defineComponent({
   created() {
     this.init(this.$parent as unknown as TreeParentCandidate)
   },
-  render(): VNode {
+  render(): VNode | null {
+    if (!this.renderRow) return null
     const slot = getDefaultSlot(this)
     const content = slot?.({
       node: this.node, item: this.node.data, selectChange: this.handleCheckChange,
@@ -142,7 +145,7 @@ export default defineComponent({
       }) : null,
       this.node.loading ? renderCompat(this, 'span', { class: 'loading-icon' }) : null,
       renderCompat(this, 'span', { class: 'name' }, displayLabel(this, this.node.label)),
-    ])
+    ].filter((child): child is VNode => child !== null))
   },
   methods: {
     init(parent: TreeParentCandidate | null): void {

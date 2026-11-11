@@ -67,3 +67,18 @@
 - `api.test.ts`：七类公开事件的参数、checkbox 与 expand 点击传播、默认 scoped slot 参数及 selectChange、props 默认值和 watcher、functional label、indent/icon/showCheckbox、autoExpandParent、selectChildrenOnly、lazy、checkDescendants。
 - `runtime.test.ts`：真实 demo、虚拟列表、滚动实例隔离、resize、卸载与异步清理。
 - `render-compat.test.ts`：作用域样式、空数组/单 comment/多 comment 的框架原生回退语义、异步插槽、结构化 label 插值和右键事件，由同一构建产物在两个运行时执行。
+
+## 性能改造回归
+
+- `model-observation.test.ts`：原版观察窗口和行复用通知、children 替换与 Vue 2/3 原地修改差异、映射 children、折叠/过滤、动态监听器、纯滚动公开 childNodes 数组身份及外部 watch 通知、移除/销毁清理、lazy 初始化、type 时机及回调重入。`row-reuse-compatibility.test.ts` 覆盖 null 到 null 行复用后的显式 children 数组替换。另由 check-window-observation-compatibility.mjs 对照 ae50f54 的边界事件及数组身份轨迹。
+
+- `tests/model/performance.test.ts`：宽树构建访问次数上限；宽树选择父状态；数字/字符串 key；禁用节点；未注册 key 的祖先状态。使用工作量断言，避免机器速度影响 CI。批量重置保留原传播，不再约束为快速重置的访问次数。
+- `tests/model/selection-compatibility.test.ts`：替换选择、leafOnly、严格/仅子节点模式，以及懒加载同步/延迟回调和清空。
+- `tests/component/performance.test.ts`：勾选时按旧语义重新展平、更新 DOM 和 Node.type；type 的读写、对象展开和模式切换；普通与仅子节点模式 check 事件完整数据及查询次数。
+- `tests/component/business-compatibility.test.ts`：type 在勾选修改后的即时读取、后续覆盖及对象展开；同步 watcher 的完整父子状态序列；默认行有无复选框时的元素结构及无效注释移除。
+- `runtime.test.ts`：虚拟窗口只读取窗口内数据，顶部/中间/尾部保持绝对 slot index。
+- `virtual-window.test.ts`：默认上下各一屏缓冲、边缘两屏/中部三屏；大跳转/反向/同轮多次滚动及非整行视口覆盖；远端定位与窗口卸载后的勾选/当前状态保留；筛选、短数据、空数据及替换恢复。两套运行时使用同一构建产物。
+- 手工性能对比：`NODE_ENV=production node scripts/benchmark-performance.mjs ae50f54`。基准通过内存转换读取指定 Git 版本及当前源码，不修改构建产物；Vue 3 组件计时使用 jsdom，不包含浏览器绘制。
+- 内存回归补充：自定义 type 的 null/undefined/boolean/number/string/symbol 值、模式切换及对象展开；12,000 层已有模型和 150,000 同级子节点的展平；隐藏父节点继续下降、折叠子树排除及前序顺序。深树测试隔离展平，不代表递归构造和勾选也支持该深度。
+- 内存测量：`NODE_ENV=production node scripts/benchmark-memory.mjs --nodes=50000 --runs=3`；可指定 `--baseline=<git-ref>` 或 `--baseline-dir=<source-snapshot>`。结果包含输入、模型、响应式和 computed 展平，排除 DOM；每个样本使用独立进程和三次 GC，不设不稳定的毫秒/堆阈值作为 CI 断言。
+- DOM 测量：`NODE_ENV=production node scripts/benchmark-dom.mjs ae50f54`；分别统计 Vue 3 顶部/中部/底部、有无复选框时的渲染行、总节点、元素、注释和文本节点。详细数字与兼容边界见 `docs/performance-2026-10-27.md`。
